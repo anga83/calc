@@ -9,8 +9,41 @@
 <body>
   <div class="app">
     <header class="topbar">
-      <h1>Zeilenrechner</h1>
-      <p>Kommentare, Variablen, Prozentrechnung und Einheitenumrechnung wie in Soulver.</p>
+      <div class="topbar-main">
+        <div>
+          <h1>Zeilenrechner</h1>
+          <p>Kommentare, Variablen, Prozentrechnung und Einheitenumrechnung wie in Soulver.</p>
+        </div>
+        <div class="help-wrap">
+          <button id="help-chip" class="help-chip" type="button" aria-expanded="false" aria-controls="help-popover" title="Hilfe">?</button>
+          <div id="help-popover" class="help-popover" hidden>
+            <h2>Syntax</h2>
+            <ul>
+              <li>Arithmetik: <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>^</code></li>
+              <li>Text-Operatoren: <code>plus</code>, <code>minus</code>, <code>mal</code>, <code>of</code>, <code>on</code>, <code>off</code></li>
+              <li>Umrechnung: <code>in</code>, <code>to</code>, <code>as</code>, Kurzform: <code>km m</code></li>
+              <li>Zuweisung: <code>=</code>, <code>+=</code>, <code>-=</code></li>
+              <li>Referenzen: <code>@3</code> (Zeile 3), <code>ans</code>/<code>last</code></li>
+              <li>Kommentare: Zeilen mit <code>#</code> oder <code>//</code></li>
+              <li>Ein trailing <code>=</code> wird ignoriert: <code>1 + 2 =</code></li>
+            </ul>
+
+            <h2>Unterstützte Umrechnungen</h2>
+            <ul>
+              <li>Länge: <code>mm</code>, <code>cm</code>, <code>m</code>, <code>km</code>, <code>in</code>, <code>ft</code>, <code>yd</code>, <code>mi</code></li>
+              <li>Masse: <code>mg</code>, <code>g</code>, <code>kg</code>, <code>t</code>, <code>oz</code>, <code>lb</code></li>
+              <li>Zeit: <code>ms</code>, <code>s</code>, <code>min</code>, <code>h</code>, <code>d</code>, <code>wk</code></li>
+              <li>Volumen: <code>ml</code>, <code>l</code></li>
+              <li>Fläche: <code>cm²</code>, <code>m²</code>, <code>km²</code>, <code>ha</code></li>
+              <li>Geschwindigkeit: <code>m/s</code>, <code>km/h</code>, <code>mph</code></li>
+              <li>Temperatur: <code>°C</code>, <code>°F</code>, <code>K</code></li>
+              <li>Währung: <code>€</code>/<code>EUR</code>, <code>USD</code>, <code>CHF</code>, <code>GBP</code></li>
+            </ul>
+
+            <button id="load-demo-btn" class="demo-btn" type="button">Demo</button>
+          </div>
+        </div>
+      </div>
     </header>
 
     <main class="workspace">

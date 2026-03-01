@@ -2,6 +2,9 @@
 
 const inputEl = document.getElementById("sheet-input");
 const resultsEl = document.getElementById("sheet-results");
+const helpChipEl = document.getElementById("help-chip");
+const helpPopoverEl = document.getElementById("help-popover");
+const loadDemoBtnEl = document.getElementById("load-demo-btn");
 
 const INITIAL_TEXT = `# Beispiel
 netto = 1.250,00
@@ -18,6 +21,8 @@ temperatur as °C
 essen = 22,40
 trinkgeld = 10%
 gesamt = essen + trinkgeld`;
+
+const STORAGE_KEY = "zeilenrechner:last-sheet";
 
 const unitDefs = {
   mm: linearUnit("length", "mm", 0.001),
@@ -280,6 +285,10 @@ function stripInlineComment(line) {
   }
 
   return line;
+}
+
+function stripTrailingEquals(line) {
+  return line.replace(/\s*(?:=\s*)+$/u, "");
 }
 
 function parseLocaleNumber(raw) {
@@ -891,7 +900,12 @@ function evaluateLine(rawLine, context) {
     return { type: "comment", display: "", value: null };
   }
 
-  const assignment = parseAssignment(withoutInlineComment);
+  const sanitizedLine = stripTrailingEquals(withoutInlineComment).trim();
+  if (!sanitizedLine) {
+    return { type: "comment", display: "", value: null };
+  }
+
+  const assignment = parseAssignment(sanitizedLine);
   if (assignment) {
     const rhsExpr = maybeStripLabel(assignment.rhs);
     const rhsValue = evaluateExpression(rhsExpr, context);
@@ -920,7 +934,7 @@ function evaluateLine(rawLine, context) {
     };
   }
 
-  const expression = expandUnitShorthand(maybeStripLabel(withoutInlineComment));
+  const expression = expandUnitShorthand(maybeStripLabel(sanitizedLine));
   const result = evaluateExpression(expression, context);
   context.lastValue = cloneQuantity(result);
   return { type: "result", display: formatQuantity(result), value: cloneQuantity(result) };
@@ -970,17 +984,88 @@ function recalculate() {
   renderResults(evaluation);
 }
 
+function persistInput(value) {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+  try {
+    window.localStorage.setItem(STORAGE_KEY, value);
+  } catch (_error) {
+    // Storage ist optional; Fehler sollen die App nicht blockieren.
+  }
+}
+
+function loadPersistedInput() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return "";
+  }
+  try {
+    return window.localStorage.getItem(STORAGE_KEY) || "";
+  } catch (_error) {
+    return "";
+  }
+}
+
+function setInputAndRecalculate(text) {
+  inputEl.value = text;
+  persistInput(inputEl.value);
+  recalculate();
+  inputEl.focus();
+}
+
+function toggleHelpPopover(forceOpen) {
+  if (!helpPopoverEl || !helpChipEl) {
+    return;
+  }
+  const shouldOpen = typeof forceOpen === "boolean" ? forceOpen : Boolean(helpPopoverEl.hidden);
+  helpPopoverEl.hidden = !shouldOpen;
+  helpChipEl.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+}
+
 function syncScrollFromInput() {
   resultsEl.scrollTop = inputEl.scrollTop;
 }
 
-inputEl.addEventListener("input", recalculate);
+inputEl.addEventListener("input", () => {
+  persistInput(inputEl.value);
+  recalculate();
+});
 inputEl.addEventListener("scroll", syncScrollFromInput);
 
-if (!inputEl.value.trim()) {
-  inputEl.value = INITIAL_TEXT;
+if (helpChipEl && helpPopoverEl && typeof helpChipEl.addEventListener === "function") {
+  helpChipEl.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleHelpPopover();
+  });
 }
 
+if (loadDemoBtnEl && typeof loadDemoBtnEl.addEventListener === "function") {
+  loadDemoBtnEl.addEventListener("click", () => {
+    setInputAndRecalculate(INITIAL_TEXT);
+    toggleHelpPopover(false);
+  });
+}
+
+if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+  document.addEventListener("click", (event) => {
+    if (!helpPopoverEl || !helpChipEl || helpPopoverEl.hidden) {
+      return;
+    }
+    const target = event.target;
+    if (typeof Element !== "undefined" && target instanceof Element && target.closest(".help-wrap")) {
+      return;
+    }
+    toggleHelpPopover(false);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      toggleHelpPopover(false);
+    }
+  });
+}
+
+inputEl.value = loadPersistedInput();
 recalculate();
 
 if (typeof window !== "undefined") {
