@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zeilenrechner</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <h1>Zeilenrechner</h1>
+      <p>Kommentare, Variablen, Prozentrechnung und Einheitenumrechnung wie in Soulver.</p>
+    </header>
+
+    <main class="workspace">
+      <section class="pane input-pane">
+        <div class="pane-title">Eingaben</div>
+        <textarea id="sheet-input" spellcheck="false" wrap="off" aria-label="Rechenzeilen"></textarea>
+      </section>
+
+      <section class="pane output-pane">
+        <div class="pane-title">Ergebnisse</div>
+        <div id="sheet-results" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <footer class="hints">
+      <span><strong>Kommentare:</strong> Zeilen mit <code>#</code> oder <code>//</code></span>
+      <span><strong>Variablen:</strong> <code>name = ...</code>, <code>name += ...</code>, <code>name -= ...</code></span>
+      <span><strong>Umrechnung:</strong> <code>10 km in m</code>, <code>32 °F as °C</code></span>
+      <span><strong>Deutsche Zahlen:</strong> Komma als Dezimalzeichen, Punkt als Tausendertrennzeichen</span>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
