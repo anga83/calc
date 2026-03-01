@@ -60,6 +60,13 @@ body {
   flex: 0 0 auto;
 }
 
+.chip-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
 .help-chip {
   width: 1.75rem;
   height: 1.75rem;
@@ -75,6 +82,17 @@ body {
 .help-chip:hover,
 .help-chip:focus-visible {
   background: rgba(255, 255, 255, 0.24);
+}
+
+.icon-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-chip svg {
+  width: 0.92rem;
+  height: 0.92rem;
 }
 
 .help-popover {
@@ -134,6 +152,34 @@ body {
 .demo-btn:hover,
 .demo-btn:focus-visible {
   filter: brightness(1.06);
+}
+
+.resize-float {
+  position: fixed;
+  top: 0.55rem;
+  right: 0.55rem;
+  z-index: 55;
+  width: 2.05rem;
+  height: 2.05rem;
+  border: 1px solid rgba(18, 45, 84, 0.26);
+  border-radius: 999px;
+  background: rgba(242, 247, 255, 0.64);
+  color: #14386a;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(2px);
+}
+
+.resize-float svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.resize-float:hover,
+.resize-float:focus-visible {
+  background: rgba(242, 247, 255, 0.88);
 }
 
 .workspace {
@@ -222,6 +268,25 @@ body {
   font-size: 0.8rem;
 }
 
+.app.fullsize {
+  grid-template-rows: 1fr;
+  gap: 0;
+}
+
+.app.fullsize .topbar,
+.app.fullsize .hints {
+  display: none;
+}
+
+.app.fullsize .workspace {
+  height: 100%;
+}
+
+.app.fullsize .resize-float {
+  display: inline-flex;
+  opacity: 0.72;
+}
+
 @media (max-width: 900px) {
   .app {
     padding: 0.6rem;
@@ -235,6 +300,11 @@ body {
     width: min(31rem, calc(100vw - 1.5rem));
     right: -0.15rem;
     max-height: 70vh;
+  }
+
+  .resize-float {
+    top: 0.4rem;
+    right: 0.4rem;
   }
 
   .workspace {

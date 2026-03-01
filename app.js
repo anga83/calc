@@ -2,9 +2,12 @@
 
 const inputEl = document.getElementById("sheet-input");
 const resultsEl = document.getElementById("sheet-results");
+const appEl = document.getElementById("app-root");
 const helpChipEl = document.getElementById("help-chip");
 const helpPopoverEl = document.getElementById("help-popover");
 const loadDemoBtnEl = document.getElementById("load-demo-btn");
+const resizeChipEl = document.getElementById("resize-chip");
+const resizeFloatEl = document.getElementById("resize-float");
 
 const INITIAL_TEXT = `# Beispiel
 netto = 1.250,00
@@ -23,6 +26,9 @@ trinkgeld = 10%
 gesamt = essen + trinkgeld`;
 
 const STORAGE_KEY = "zeilenrechner:last-sheet";
+const VIEW_MODE_STORAGE_KEY = "zeilenrechner:view-mode";
+const VIEW_MODE_STANDARD = "standard";
+const VIEW_MODE_FULL = "full";
 
 const unitDefs = {
   mm: linearUnit("length", "mm", 0.001),
@@ -1013,6 +1019,64 @@ function setInputAndRecalculate(text) {
   inputEl.focus();
 }
 
+function persistViewMode(mode) {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+  try {
+    window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
+  } catch (_error) {
+    // Storage ist optional; Fehler sollen die App nicht blockieren.
+  }
+}
+
+function loadPersistedViewMode() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return VIEW_MODE_STANDARD;
+  }
+  try {
+    const stored = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+    return stored === VIEW_MODE_FULL ? VIEW_MODE_FULL : VIEW_MODE_STANDARD;
+  } catch (_error) {
+    return VIEW_MODE_STANDARD;
+  }
+}
+
+function applyViewMode(mode, shouldPersist = true) {
+  const resolvedMode = mode === VIEW_MODE_FULL ? VIEW_MODE_FULL : VIEW_MODE_STANDARD;
+  const isFull = resolvedMode === VIEW_MODE_FULL;
+
+  if (appEl && appEl.classList) {
+    appEl.classList.toggle("fullsize", isFull);
+  }
+
+  if (resizeFloatEl) {
+    resizeFloatEl.hidden = !isFull;
+  }
+
+  if (resizeChipEl) {
+    resizeChipEl.setAttribute("aria-label", isFull ? "Standardansicht umschalten" : "Vollansicht umschalten");
+    resizeChipEl.title = isFull ? "Standardansicht umschalten" : "Vollansicht umschalten";
+  }
+
+  if (resizeFloatEl) {
+    resizeFloatEl.title = isFull ? "Standardansicht" : "Vollansicht";
+  }
+
+  if (isFull) {
+    toggleHelpPopover(false);
+  }
+
+  if (shouldPersist) {
+    persistViewMode(resolvedMode);
+  }
+}
+
+function toggleViewMode() {
+  const isCurrentlyFull = Boolean(appEl && appEl.classList && appEl.classList.contains("fullsize"));
+  applyViewMode(isCurrentlyFull ? VIEW_MODE_STANDARD : VIEW_MODE_FULL);
+}
+
 function toggleHelpPopover(forceOpen) {
   if (!helpPopoverEl || !helpChipEl) {
     return;
@@ -1046,6 +1110,18 @@ if (loadDemoBtnEl && typeof loadDemoBtnEl.addEventListener === "function") {
   });
 }
 
+if (resizeChipEl && typeof resizeChipEl.addEventListener === "function") {
+  resizeChipEl.addEventListener("click", () => {
+    toggleViewMode();
+  });
+}
+
+if (resizeFloatEl && typeof resizeFloatEl.addEventListener === "function") {
+  resizeFloatEl.addEventListener("click", () => {
+    toggleViewMode();
+  });
+}
+
 if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
   document.addEventListener("click", (event) => {
     if (!helpPopoverEl || !helpChipEl || helpPopoverEl.hidden) {
@@ -1066,6 +1142,7 @@ if (typeof document !== "undefined" && typeof document.addEventListener === "fun
 }
 
 inputEl.value = loadPersistedInput();
+applyViewMode(loadPersistedViewMode(), false);
 recalculate();
 
 if (typeof window !== "undefined") {

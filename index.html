@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="app">
+  <div id="app-root" class="app">
     <header class="topbar">
       <div class="topbar-main">
         <div>
@@ -15,7 +15,12 @@
           <p>Kommentare, Variablen, Prozentrechnung und Einheitenumrechnung wie in Soulver.</p>
         </div>
         <div class="help-wrap">
-          <button id="help-chip" class="help-chip" type="button" aria-expanded="false" aria-controls="help-popover" title="Hilfe">?</button>
+          <div class="chip-row">
+            <button id="help-chip" class="help-chip" type="button" aria-expanded="false" aria-controls="help-popover" title="Hilfe">?</button>
+            <button id="resize-chip" class="help-chip icon-chip" type="button" title="Vollansicht umschalten" aria-label="Vollansicht umschalten">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scaling-icon lucide-scaling"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M14 15H9v-5"/><path d="M16 3h5v5"/><path d="M21 3 9 15"/></svg>
+            </button>
+          </div>
           <div id="help-popover" class="help-popover" hidden>
             <h2>Syntax</h2>
             <ul>
@@ -64,6 +69,10 @@
       <span><strong>Umrechnung:</strong> <code>10 km in m</code>, <code>32 °F as °C</code></span>
       <span><strong>Deutsche Zahlen:</strong> Komma als Dezimalzeichen, Punkt als Tausendertrennzeichen</span>
     </footer>
+
+    <button id="resize-float" class="resize-float" type="button" aria-label="Standardansicht wiederherstellen" title="Standardansicht">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scaling-icon lucide-scaling"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M14 15H9v-5"/><path d="M16 3h5v5"/><path d="M21 3 9 15"/></svg>
+    </button>
   </div>
 
   <script src="app.js"></script>
