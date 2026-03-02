@@ -1,32 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Zeilenrechner Icon">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#133a73"/>
-      <stop offset="100%" stop-color="#4a90d9"/>
-    </linearGradient>
-    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#f7fbff"/>
-      <stop offset="100%" stop-color="#e8f2ff"/>
-    </linearGradient>
+    <radialGradient id="bg" cx="18%" cy="10%" r="95%">
+      <stop offset="0%" stop-color="#1a4d95"/>
+      <stop offset="100%" stop-color="#0f2f5d"/>
+    </radialGradient>
   </defs>
   <rect x="24" y="24" width="464" height="464" rx="108" fill="url(#bg)"/>
-  <rect x="104" y="110" width="304" height="292" rx="32" fill="url(#panel)"/>
-  <rect x="104" y="110" width="304" height="64" rx="32" fill="#d6e5f9"/>
-  <rect x="164" y="198" width="14" height="180" rx="7" fill="#c2d6f3"/>
-  <g fill="#5d7698" font-family="'SF Mono','Menlo','Consolas',monospace" font-size="30" font-weight="700">
-    <text x="130" y="234">1</text>
-    <text x="130" y="272">2</text>
-    <text x="130" y="310">3</text>
-    <text x="130" y="348">4</text>
+  <rect x="106" y="112" width="300" height="288" rx="34" fill="#eef5ff"/>
+  <rect x="106" y="112" width="300" height="62" rx="34" fill="#d6e5f9"/>
+  <rect x="166" y="194" width="13" height="184" rx="7" fill="#bfd3ef"/>
+  <g fill="#5f7898" font-family="'SF Mono','Menlo','Consolas',monospace" font-size="30" font-weight="700">
+    <text x="132" y="232">1</text>
+    <text x="132" y="270">2</text>
+    <text x="132" y="308">3</text>
+    <text x="132" y="346">4</text>
   </g>
-  <g fill="#133a73" font-family="'SF Mono','Menlo','Consolas',monospace" font-size="36" font-weight="700">
-    <text x="198" y="236">netto</text>
-    <text x="198" y="276">mwst</text>
-    <text x="198" y="316">summe</text>
-  </g>
-  <g fill="#1e8b57" font-family="'SF Mono','Menlo','Consolas',monospace" font-size="34" font-weight="700" text-anchor="end">
-    <text x="380" y="236">1.250,00</text>
-    <text x="380" y="276">19%</text>
-    <text x="380" y="316">1.487,50</text>
+  <g fill="#1e4f8e" font-family="'SF Mono','Menlo','Consolas',monospace" font-size="33" font-weight="700">
+    <text x="198" y="236">a = 12,5</text>
+    <text x="198" y="276">b = 3%</text>
+    <text x="198" y="316">a + b</text>
   </g>
 </svg>
