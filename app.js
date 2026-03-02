@@ -7,10 +7,16 @@ const helpChipEl = document.getElementById("help-chip");
 const helpPopoverEl = document.getElementById("help-popover");
 const downloadChipEl = document.getElementById("download-chip");
 const downloadPopoverEl = document.getElementById("download-popover");
+const settingsChipEl = document.getElementById("settings-chip");
+const settingsPopoverEl = document.getElementById("settings-popover");
 const loadDemoBtnEl = document.getElementById("load-demo-btn");
 const exportPdfDividerBtnEl = document.getElementById("export-pdf-divider-btn");
 const exportPdfPlainBtnEl = document.getElementById("export-pdf-plain-btn");
 const exportMdBtnEl = document.getElementById("export-md-btn");
+const settingUseMathJsEl = document.getElementById("setting-use-mathjs");
+const settingDecimalsEl = document.getElementById("setting-decimals");
+const settingPreciseIntermediateEl = document.getElementById("setting-precise-intermediate");
+const mathJsStatusEl = document.getElementById("mathjs-status");
 const resizeChipEl = document.getElementById("resize-chip");
 const resizeFloatEl = document.getElementById("resize-float");
 
@@ -32,8 +38,16 @@ gesamt = essen + trinkgeld`;
 
 const STORAGE_KEY = "zeilenrechner:last-sheet";
 const VIEW_MODE_STORAGE_KEY = "zeilenrechner:view-mode";
+const SETTINGS_STORAGE_KEY = "zeilenrechner:settings";
 const VIEW_MODE_STANDARD = "standard";
 const VIEW_MODE_FULL = "full";
+const MATHJS_CDN_URL = "https://cdn.jsdelivr.net/npm/mathjs@13.2.2/lib/browser/math.js";
+
+const DEFAULT_SETTINGS = Object.freeze({
+  useMathJs: false,
+  decimalPlaces: 4,
+  preciseIntermediates: true,
+});
 
 const unitDefs = {
   mm: linearUnit("length", "mm", 0.001),
@@ -246,6 +260,9 @@ const constants = {
 };
 
 let lastEvaluation = { lineValues: [] };
+let appSettings = loadPersistedSettings();
+let mathJsLoadPromise = null;
+let mathJsLoadState = "idle";
 
 function linearUnit(dimension, symbol, factorToBase) {
   return {
@@ -300,6 +317,49 @@ function stripInlineComment(line) {
 
 function stripTrailingEquals(line) {
   return line.replace(/\s*(?:=\s*)+$/u, "");
+}
+
+function clampDecimalPlaces(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return DEFAULT_SETTINGS.decimalPlaces;
+  }
+  return Math.max(0, Math.min(10, Math.round(numeric)));
+}
+
+function sanitizeSettings(raw) {
+  const source = raw && typeof raw === "object" ? raw : {};
+  return {
+    useMathJs: Boolean(source.useMathJs),
+    decimalPlaces: clampDecimalPlaces(source.decimalPlaces),
+    preciseIntermediates: source.preciseIntermediates !== false,
+  };
+}
+
+function persistSettings() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+  try {
+    window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(appSettings));
+  } catch (_error) {
+    // Storage ist optional; Fehler sollen die App nicht blockieren.
+  }
+}
+
+function loadPersistedSettings() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return { ...DEFAULT_SETTINGS };
+  }
+  try {
+    const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!raw) {
+      return { ...DEFAULT_SETTINGS };
+    }
+    return sanitizeSettings(JSON.parse(raw));
+  } catch (_error) {
+    return { ...DEFAULT_SETTINGS };
+  }
 }
 
 function parseLocaleNumber(raw) {
@@ -858,11 +918,44 @@ function maybeStripLabel(line) {
   return match[2];
 }
 
-function formatNumber(value, maximumFractionDigits = 10) {
+function getDisplayFractionDigits() {
+  return clampDecimalPlaces(appSettings.decimalPlaces);
+}
+
+function roundToDecimals(value, decimals) {
+  if (!Number.isFinite(value)) {
+    return value;
+  }
+  if (decimals <= 0) {
+    return Math.round(value);
+  }
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
+}
+
+function quantizeQuantityForStorage(quantity) {
+  if (appSettings.preciseIntermediates) {
+    return cloneQuantity(quantity);
+  }
+
+  const rounded = cloneQuantity(quantity);
+  const decimals = getDisplayFractionDigits();
+
+  if (rounded.isPercent && !rounded.unit) {
+    const percentRounded = roundToDecimals(rounded.value * 100, decimals);
+    rounded.value = percentRounded / 100;
+  } else {
+    rounded.value = roundToDecimals(rounded.value, decimals);
+  }
+
+  return rounded;
+}
+
+function formatNumber(value, fractionDigits = getDisplayFractionDigits()) {
   const rounded = Object.is(value, -0) ? 0 : value;
   return rounded.toLocaleString("de-DE", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
     useGrouping: true,
   });
 }
@@ -873,18 +966,169 @@ function formatQuantity(quantity) {
   }
 
   if (quantity.isPercent && !quantity.unit) {
-    return `${formatNumber(quantity.value * 100, 6)} %`;
+    return `${formatNumber(quantity.value * 100)} %`;
   }
 
-  const number = formatNumber(quantity.value, 10);
+  const number = formatNumber(quantity.value);
   if (!quantity.unit) {
     return number;
   }
   return `${number} ${unitDefs[quantity.unit].symbol}`;
 }
 
-function evaluateExpression(expression, context) {
-  const preprocessed = preprocessExpression(expression, context.variables, context.lineValues);
+function getMathJsInstance() {
+  if (typeof window === "undefined" || !window.math) {
+    return null;
+  }
+  if (typeof window.math.evaluate !== "function") {
+    return null;
+  }
+  return window.math;
+}
+
+function expressionContainsKnownUnit(expression) {
+  const words = expression.match(/[\p{L}°][\p{L}\p{N}_°/²]*/gu);
+  if (!words) {
+    return false;
+  }
+  for (const word of words) {
+    if (unitAliases.has(word.toLowerCase())) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function normalizeLocaleNumbersForMathJs(expression) {
+  let output = "";
+  let index = 0;
+
+  while (index < expression.length) {
+    const char = expression[index];
+    const prev = index > 0 ? expression[index - 1] : "";
+    const startsWithComma = char === "," && index + 1 < expression.length && /\d/.test(expression[index + 1]);
+    const startsWithDigit = /\d/.test(char);
+    const prevIsIdentifier = prev ? /[\p{L}\p{N}_]/u.test(prev) : false;
+
+    if ((startsWithDigit || startsWithComma) && !prevIsIdentifier) {
+      const start = index;
+      let hasComma = false;
+      if (startsWithComma) {
+        hasComma = true;
+        index += 1;
+      }
+
+      while (index < expression.length) {
+        const current = expression[index];
+        if (/\d/.test(current) || current === ".") {
+          index += 1;
+          continue;
+        }
+        if (current === "," && !hasComma) {
+          hasComma = true;
+          index += 1;
+          continue;
+        }
+        break;
+      }
+
+      const rawNumber = expression.slice(start, index);
+      try {
+        output += String(parseLocaleNumber(rawNumber));
+      } catch (_error) {
+        output += rawNumber;
+      }
+      continue;
+    }
+
+    output += char;
+    index += 1;
+  }
+
+  return output;
+}
+
+function normalizeExpressionForMathJs(expression) {
+  return normalizeLocaleNumbersForMathJs(
+    expression
+      .replace(/\bmal\b/giu, "*")
+      .replace(/\bplus\b/giu, "+")
+      .replace(/\bminus\b/giu, "-")
+      .replace(/\bof\b/giu, "*")
+  ).toLowerCase();
+}
+
+function buildMathJsScope(context, placeholders) {
+  const scope = {};
+
+  for (const [name, quantity] of placeholders.entries()) {
+    if (!quantity || quantity.unit) {
+      return null;
+    }
+    scope[name.toLowerCase()] = quantity.value;
+  }
+
+  for (const [normalizedName, variable] of context.variables.entries()) {
+    if (!variable || !variable.quantity || variable.quantity.unit) {
+      continue;
+    }
+    scope[normalizedName] = variable.quantity.value;
+    const originalName = variable.name.trim().toLowerCase();
+    if (originalName && !/\s/u.test(originalName)) {
+      scope[originalName] = variable.quantity.value;
+    }
+  }
+
+  if (context.lastValue && !context.lastValue.unit) {
+    scope.ans = context.lastValue.value;
+    scope.last = context.lastValue.value;
+  }
+
+  return scope;
+}
+
+function shouldTryMathJs(preprocessed) {
+  if (!appSettings.useMathJs || !getMathJsInstance()) {
+    return false;
+  }
+  if (/%/u.test(preprocessed.expression)) {
+    return false;
+  }
+  if (/\b(in|to|as|on|off)\b/iu.test(preprocessed.expression)) {
+    return false;
+  }
+  if (/[€£$°]/u.test(preprocessed.expression)) {
+    return false;
+  }
+  return !expressionContainsKnownUnit(preprocessed.expression);
+}
+
+function toNumericMathValue(value) {
+  if (typeof value === "number") {
+    return value;
+  }
+  if (typeof value === "boolean") {
+    return value ? 1 : 0;
+  }
+  if (typeof value === "bigint") {
+    return Number(value);
+  }
+  if (!value || typeof value !== "object") {
+    return NaN;
+  }
+  if (typeof value.toNumber === "function") {
+    return value.toNumber();
+  }
+  if (typeof value.valueOf === "function") {
+    const primitive = value.valueOf();
+    if (typeof primitive === "number") {
+      return primitive;
+    }
+  }
+  return NaN;
+}
+
+function evaluateExpressionWithParser(preprocessed, context) {
   const tokens = tokenize(preprocessed.expression);
   const ast = parse(tokens);
   return evaluateAst(ast, {
@@ -892,6 +1136,40 @@ function evaluateExpression(expression, context) {
     placeholders: preprocessed.placeholders,
     lastValue: context.lastValue,
   });
+}
+
+function evaluateExpressionWithMathJs(preprocessed, context) {
+  const math = getMathJsInstance();
+  if (!math) {
+    throw new Error("math.js ist nicht geladen");
+  }
+
+  const scope = buildMathJsScope(context, preprocessed.placeholders);
+  if (!scope) {
+    throw new Error("math.js kann Ausdrücke mit Einheiten hier nicht auswerten");
+  }
+
+  const mathExpression = normalizeExpressionForMathJs(preprocessed.expression);
+  const result = math.evaluate(mathExpression, scope);
+  const numeric = toNumericMathValue(result);
+  if (!Number.isFinite(numeric)) {
+    throw new Error("math.js-Ergebnis ist nicht numerisch");
+  }
+  return makeQuantity(numeric);
+}
+
+function evaluateExpression(expression, context) {
+  const preprocessed = preprocessExpression(expression, context.variables, context.lineValues);
+
+  if (shouldTryMathJs(preprocessed)) {
+    try {
+      return evaluateExpressionWithMathJs(preprocessed, context);
+    } catch (_error) {
+      return evaluateExpressionWithParser(preprocessed, context);
+    }
+  }
+
+  return evaluateExpressionWithParser(preprocessed, context);
 }
 
 function evaluateLine(rawLine, context) {
@@ -936,19 +1214,21 @@ function evaluateLine(rawLine, context) {
       throw new Error(`Unbekannter Zuweisungsoperator: ${assignment.op}`);
     }
 
-    context.variables.set(normalizedKey, { name: assignment.lhs.trim(), quantity: cloneQuantity(assignedValue) });
-    context.lastValue = cloneQuantity(assignedValue);
+    const storedValue = quantizeQuantityForStorage(assignedValue);
+    context.variables.set(normalizedKey, { name: assignment.lhs.trim(), quantity: cloneQuantity(storedValue) });
+    context.lastValue = cloneQuantity(storedValue);
     return {
       type: "result",
-      display: formatQuantity(assignedValue),
-      value: cloneQuantity(assignedValue),
+      display: formatQuantity(storedValue),
+      value: cloneQuantity(storedValue),
     };
   }
 
   const expression = expandUnitShorthand(maybeStripLabel(sanitizedLine));
   const result = evaluateExpression(expression, context);
-  context.lastValue = cloneQuantity(result);
-  return { type: "result", display: formatQuantity(result), value: cloneQuantity(result) };
+  const storedValue = quantizeQuantityForStorage(result);
+  context.lastValue = cloneQuantity(storedValue);
+  return { type: "result", display: formatQuantity(storedValue), value: cloneQuantity(storedValue) };
 }
 
 function evaluateSheet(text) {
@@ -1022,6 +1302,105 @@ function setInputAndRecalculate(text) {
   persistInput(inputEl.value);
   recalculate();
   inputEl.focus();
+}
+
+function updateMathJsStatus() {
+  if (!mathJsStatusEl) {
+    return;
+  }
+
+  if (!appSettings.useMathJs) {
+    mathJsStatusEl.textContent = "math.js ist deaktiviert.";
+    return;
+  }
+
+  if (getMathJsInstance()) {
+    mathJsStatusEl.textContent = "math.js ist aktiv.";
+    return;
+  }
+
+  if (mathJsLoadState === "loading") {
+    mathJsStatusEl.textContent = "math.js wird geladen ...";
+    return;
+  }
+
+  if (mathJsLoadState === "error") {
+    mathJsStatusEl.textContent = "math.js konnte nicht geladen werden. Fallback ist aktiv.";
+    return;
+  }
+
+  mathJsStatusEl.textContent = "math.js ist eingeschaltet, aber noch nicht geladen.";
+}
+
+function ensureMathJsLoaded() {
+  if (!appSettings.useMathJs) {
+    return Promise.resolve(false);
+  }
+  if (getMathJsInstance()) {
+    mathJsLoadState = "ready";
+    updateMathJsStatus();
+    return Promise.resolve(true);
+  }
+  if (typeof document === "undefined") {
+    return Promise.resolve(false);
+  }
+  if (mathJsLoadPromise) {
+    return mathJsLoadPromise;
+  }
+
+  mathJsLoadState = "loading";
+  updateMathJsStatus();
+
+  mathJsLoadPromise = new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = MATHJS_CDN_URL;
+    script.async = true;
+    script.onload = () => {
+      mathJsLoadState = getMathJsInstance() ? "ready" : "error";
+      if (mathJsLoadState !== "ready") {
+        mathJsLoadPromise = null;
+      }
+      updateMathJsStatus();
+      recalculate();
+      resolve(Boolean(getMathJsInstance()));
+    };
+    script.onerror = () => {
+      mathJsLoadState = "error";
+      mathJsLoadPromise = null;
+      updateMathJsStatus();
+      resolve(false);
+    };
+    const mountPoint = document.head || document.body;
+    if (!mountPoint || typeof mountPoint.appendChild !== "function") {
+      mathJsLoadState = "error";
+      updateMathJsStatus();
+      resolve(false);
+      return;
+    }
+    mountPoint.appendChild(script);
+  });
+
+  return mathJsLoadPromise;
+}
+
+function applySettingsToUi() {
+  if (settingUseMathJsEl) {
+    settingUseMathJsEl.checked = appSettings.useMathJs;
+  }
+  if (settingDecimalsEl) {
+    settingDecimalsEl.value = String(clampDecimalPlaces(appSettings.decimalPlaces));
+  }
+  if (settingPreciseIntermediateEl) {
+    settingPreciseIntermediateEl.checked = appSettings.preciseIntermediates;
+  }
+  updateMathJsStatus();
+}
+
+function patchSettings(update) {
+  appSettings = sanitizeSettings({ ...appSettings, ...update });
+  persistSettings();
+  applySettingsToUi();
+  recalculate();
 }
 
 function createExportRows() {
@@ -1344,6 +1723,7 @@ function applyViewMode(mode, shouldPersist = true) {
   if (isFull) {
     toggleHelpPopover(false);
     toggleDownloadPopover(false);
+    toggleSettingsPopover(false);
   }
 
   if (shouldPersist) {
@@ -1363,6 +1743,15 @@ function toggleDownloadPopover(forceOpen) {
   const shouldOpen = typeof forceOpen === "boolean" ? forceOpen : Boolean(downloadPopoverEl.hidden);
   downloadPopoverEl.hidden = !shouldOpen;
   downloadChipEl.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+}
+
+function toggleSettingsPopover(forceOpen) {
+  if (!settingsPopoverEl || !settingsChipEl) {
+    return;
+  }
+  const shouldOpen = typeof forceOpen === "boolean" ? forceOpen : Boolean(settingsPopoverEl.hidden);
+  settingsPopoverEl.hidden = !shouldOpen;
+  settingsChipEl.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
 }
 
 function toggleHelpPopover(forceOpen) {
@@ -1388,6 +1777,7 @@ if (helpChipEl && helpPopoverEl && typeof helpChipEl.addEventListener === "funct
   helpChipEl.addEventListener("click", (event) => {
     event.stopPropagation();
     toggleDownloadPopover(false);
+    toggleSettingsPopover(false);
     toggleHelpPopover();
   });
 }
@@ -1396,7 +1786,17 @@ if (downloadChipEl && downloadPopoverEl && typeof downloadChipEl.addEventListene
   downloadChipEl.addEventListener("click", (event) => {
     event.stopPropagation();
     toggleHelpPopover(false);
+    toggleSettingsPopover(false);
     toggleDownloadPopover();
+  });
+}
+
+if (settingsChipEl && settingsPopoverEl && typeof settingsChipEl.addEventListener === "function") {
+  settingsChipEl.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleHelpPopover(false);
+    toggleDownloadPopover(false);
+    toggleSettingsPopover();
   });
 }
 
@@ -1405,6 +1805,7 @@ if (loadDemoBtnEl && typeof loadDemoBtnEl.addEventListener === "function") {
     setInputAndRecalculate(INITIAL_TEXT);
     toggleHelpPopover(false);
     toggleDownloadPopover(false);
+    toggleSettingsPopover(false);
   });
 }
 
@@ -1412,6 +1813,7 @@ if (exportPdfDividerBtnEl && typeof exportPdfDividerBtnEl.addEventListener === "
   exportPdfDividerBtnEl.addEventListener("click", () => {
     exportPdf(true);
     toggleDownloadPopover(false);
+    toggleSettingsPopover(false);
   });
 }
 
@@ -1419,6 +1821,7 @@ if (exportPdfPlainBtnEl && typeof exportPdfPlainBtnEl.addEventListener === "func
   exportPdfPlainBtnEl.addEventListener("click", () => {
     exportPdf(false);
     toggleDownloadPopover(false);
+    toggleSettingsPopover(false);
   });
 }
 
@@ -1426,6 +1829,28 @@ if (exportMdBtnEl && typeof exportMdBtnEl.addEventListener === "function") {
   exportMdBtnEl.addEventListener("click", () => {
     exportMarkdownTable();
     toggleDownloadPopover(false);
+    toggleSettingsPopover(false);
+  });
+}
+
+if (settingUseMathJsEl && typeof settingUseMathJsEl.addEventListener === "function") {
+  settingUseMathJsEl.addEventListener("change", () => {
+    patchSettings({ useMathJs: settingUseMathJsEl.checked });
+    if (appSettings.useMathJs) {
+      ensureMathJsLoaded();
+    }
+  });
+}
+
+if (settingDecimalsEl && typeof settingDecimalsEl.addEventListener === "function") {
+  settingDecimalsEl.addEventListener("change", () => {
+    patchSettings({ decimalPlaces: clampDecimalPlaces(settingDecimalsEl.value) });
+  });
+}
+
+if (settingPreciseIntermediateEl && typeof settingPreciseIntermediateEl.addEventListener === "function") {
+  settingPreciseIntermediateEl.addEventListener("change", () => {
+    patchSettings({ preciseIntermediates: settingPreciseIntermediateEl.checked });
   });
 }
 
@@ -1445,7 +1870,8 @@ if (typeof document !== "undefined" && typeof document.addEventListener === "fun
   document.addEventListener("click", (event) => {
     const helpOpen = Boolean(helpPopoverEl && !helpPopoverEl.hidden);
     const downloadOpen = Boolean(downloadPopoverEl && !downloadPopoverEl.hidden);
-    if (!helpOpen && !downloadOpen) {
+    const settingsOpen = Boolean(settingsPopoverEl && !settingsPopoverEl.hidden);
+    if (!helpOpen && !downloadOpen && !settingsOpen) {
       return;
     }
     const target = event.target;
@@ -1454,17 +1880,23 @@ if (typeof document !== "undefined" && typeof document.addEventListener === "fun
     }
     toggleHelpPopover(false);
     toggleDownloadPopover(false);
+    toggleSettingsPopover(false);
   });
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       toggleHelpPopover(false);
       toggleDownloadPopover(false);
+      toggleSettingsPopover(false);
     }
   });
 }
 
 inputEl.value = loadPersistedInput();
+applySettingsToUi();
+if (appSettings.useMathJs) {
+  ensureMathJsLoaded();
+}
 applyViewMode(loadPersistedViewMode(), false);
 recalculate();
 

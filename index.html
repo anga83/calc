@@ -20,6 +20,9 @@
             <button id="download-chip" class="help-chip icon-chip" type="button" title="Exportieren" aria-label="Exportieren" aria-expanded="false" aria-controls="download-popover">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-download-icon lucide-download"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>
             </button>
+            <button id="settings-chip" class="help-chip icon-chip" type="button" title="Einstellungen" aria-label="Einstellungen" aria-expanded="false" aria-controls="settings-popover">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings-icon lucide-settings"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
             <button id="resize-chip" class="help-chip icon-chip" type="button" title="Vollansicht umschalten" aria-label="Vollansicht umschalten">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scaling-icon lucide-scaling"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M14 15H9v-5"/><path d="M16 3h5v5"/><path d="M21 3 9 15"/></svg>
             </button>
@@ -55,6 +58,43 @@
             <button id="export-pdf-divider-btn" class="download-option" type="button">PDF mit Trennstrich</button>
             <button id="export-pdf-plain-btn" class="download-option" type="button">PDF ohne Trennstrich</button>
             <button id="export-md-btn" class="download-option" type="button">Markdown-Tabelle</button>
+          </div>
+          <div id="settings-popover" class="settings-popover" hidden>
+            <h2>Einstellungen</h2>
+
+            <label class="setting-item" for="setting-use-mathjs">
+              <span class="setting-label">math.js verwenden</span>
+              <span class="switch">
+                <input id="setting-use-mathjs" type="checkbox">
+                <span class="switch-ui"></span>
+              </span>
+            </label>
+            <p id="mathjs-status" class="setting-note">math.js ist deaktiviert.</p>
+
+            <label class="setting-item" for="setting-decimals">
+              <span class="setting-label">Fixe Nachkommastellen</span>
+              <select id="setting-decimals" class="setting-select">
+                <option value="0">0</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+              </select>
+            </label>
+
+            <label class="setting-item" for="setting-precise-intermediate">
+              <span class="setting-label">Mit genauen Zwischenergebnissen rechnen</span>
+              <span class="switch">
+                <input id="setting-precise-intermediate" type="checkbox">
+                <span class="switch-ui"></span>
+              </span>
+            </label>
           </div>
         </div>
       </div>

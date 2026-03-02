@@ -114,7 +114,7 @@ body {
 .download-popover {
   position: absolute;
   top: calc(100% + 0.45rem);
-  right: 2.2rem;
+  right: 4.35rem;
   width: min(15.8rem, calc(100vw - 2rem));
   border-radius: 12px;
   border: 1px solid #bad0ed;
@@ -153,6 +153,103 @@ body {
 .download-option:hover,
 .download-option:focus-visible {
   background: #e8f1ff;
+}
+
+.settings-popover {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 2.2rem;
+  width: min(21rem, calc(100vw - 2rem));
+  border-radius: 12px;
+  border: 1px solid #bad0ed;
+  background: #f8fbff;
+  color: #173153;
+  box-shadow: 0 14px 28px rgba(11, 26, 53, 0.28);
+  padding: 0.72rem;
+  z-index: 31;
+}
+
+.settings-popover h2 {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #2d4f7f;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  margin: 0.45rem 0;
+}
+
+.setting-label {
+  font-size: 0.83rem;
+  line-height: 1.2;
+  color: #17365e;
+}
+
+.setting-note {
+  margin: 0.25rem 0 0.55rem;
+  font-size: 0.76rem;
+  color: #37547b;
+}
+
+.setting-select {
+  border: 1px solid #c8d7ec;
+  border-radius: 8px;
+  padding: 0.3rem 0.45rem;
+  background: #ffffff;
+  color: #143560;
+  font-size: 0.82rem;
+}
+
+.switch {
+  position: relative;
+  display: inline-flex;
+  width: 2.2rem;
+  height: 1.3rem;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-ui {
+  position: absolute;
+  inset: 0;
+  background: #b6c6dd;
+  border-radius: 999px;
+  transition: background 0.16s ease;
+}
+
+.switch-ui::before {
+  content: "";
+  position: absolute;
+  width: 0.95rem;
+  height: 0.95rem;
+  left: 0.18rem;
+  top: 0.17rem;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(13, 30, 56, 0.35);
+  transition: transform 0.16s ease;
+}
+
+.switch input:checked + .switch-ui {
+  background: #2d7de1;
+}
+
+.switch input:checked + .switch-ui::before {
+  transform: translateX(0.9rem);
+}
+
+.switch input:focus-visible + .switch-ui {
+  box-shadow: 0 0 0 2px rgba(45, 125, 225, 0.35);
 }
 
 .help-popover h2 {
@@ -348,7 +445,12 @@ body {
 
   .download-popover {
     width: min(15.8rem, calc(100vw - 1.5rem));
-    right: 2.05rem;
+    right: 4rem;
+  }
+
+  .settings-popover {
+    width: min(21rem, calc(100vw - 1.5rem));
+    right: 2rem;
   }
 
   .resize-float {
