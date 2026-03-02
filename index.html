@@ -17,6 +17,9 @@
         <div class="help-wrap">
           <div class="chip-row">
             <button id="help-chip" class="help-chip" type="button" aria-expanded="false" aria-controls="help-popover" title="Hilfe">?</button>
+            <button id="download-chip" class="help-chip icon-chip" type="button" title="Exportieren" aria-label="Exportieren" aria-expanded="false" aria-controls="download-popover">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-download-icon lucide-download"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>
+            </button>
             <button id="resize-chip" class="help-chip icon-chip" type="button" title="Vollansicht umschalten" aria-label="Vollansicht umschalten">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scaling-icon lucide-scaling"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M14 15H9v-5"/><path d="M16 3h5v5"/><path d="M21 3 9 15"/></svg>
             </button>
@@ -46,6 +49,12 @@
             </ul>
 
             <button id="load-demo-btn" class="demo-btn" type="button">Demo</button>
+          </div>
+          <div id="download-popover" class="download-popover" hidden>
+            <h2>Export</h2>
+            <button id="export-pdf-divider-btn" class="download-option" type="button">PDF mit Trennstrich</button>
+            <button id="export-pdf-plain-btn" class="download-option" type="button">PDF ohne Trennstrich</button>
+            <button id="export-md-btn" class="download-option" type="button">Markdown-Tabelle</button>
           </div>
         </div>
       </div>

@@ -5,7 +5,12 @@ const resultsEl = document.getElementById("sheet-results");
 const appEl = document.getElementById("app-root");
 const helpChipEl = document.getElementById("help-chip");
 const helpPopoverEl = document.getElementById("help-popover");
+const downloadChipEl = document.getElementById("download-chip");
+const downloadPopoverEl = document.getElementById("download-popover");
 const loadDemoBtnEl = document.getElementById("load-demo-btn");
+const exportPdfDividerBtnEl = document.getElementById("export-pdf-divider-btn");
+const exportPdfPlainBtnEl = document.getElementById("export-pdf-plain-btn");
+const exportMdBtnEl = document.getElementById("export-md-btn");
 const resizeChipEl = document.getElementById("resize-chip");
 const resizeFloatEl = document.getElementById("resize-float");
 
@@ -1019,6 +1024,279 @@ function setInputAndRecalculate(text) {
   inputEl.focus();
 }
 
+function createExportRows() {
+  const inputLines = inputEl.value.split("\n");
+  const resultRows = lastEvaluation && Array.isArray(lastEvaluation.displayRows) ? lastEvaluation.displayRows : [];
+  const rowCount = Math.max(inputLines.length, resultRows.length);
+  const rows = [];
+
+  for (let i = 0; i < rowCount; i += 1) {
+    rows.push({
+      input: inputLines[i] || "",
+      result: resultRows[i] ? resultRows[i].display || "" : "",
+    });
+  }
+
+  while (rows.length > 0) {
+    const tail = rows[rows.length - 1];
+    if (tail.input.trim() || tail.result.trim()) {
+      break;
+    }
+    rows.pop();
+  }
+
+  return rows.length ? rows : [{ input: "", result: "" }];
+}
+
+function createExportFilename(extension, label = "export") {
+  const now = new Date();
+  const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}-${String(now.getMinutes()).padStart(2, "0")}`;
+  return `zeilenrechner-${label}_${stamp}.${extension}`;
+}
+
+function downloadBlob(blob, filename) {
+  if (typeof URL === "undefined" || typeof document === "undefined" || !document.body) {
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function escapeMarkdownCell(value) {
+  return String(value || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/\r?\n/g, "<br>");
+}
+
+function exportMarkdownTable() {
+  const rows = createExportRows();
+  const lines = [
+    "| Eingabe | Ergebnis |",
+    "| --- | --- |",
+  ];
+
+  for (const row of rows) {
+    lines.push(`| ${escapeMarkdownCell(row.input)} | ${escapeMarkdownCell(row.result)} |`);
+  }
+
+  const content = `${lines.join("\n")}\n`;
+  const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+  downloadBlob(blob, createExportFilename("md", "markdown"));
+}
+
+function formatPdfNumber(value) {
+  return Number(value.toFixed(3)).toString();
+}
+
+function wrapTextForPdf(text, maxChars) {
+  const normalized = String(text || "").replace(/\t/g, "  ");
+  if (!normalized) {
+    return [""];
+  }
+
+  const chunks = normalized.split(/\r?\n/u);
+  const lines = [];
+
+  for (const chunk of chunks) {
+    if (!chunk.trim()) {
+      lines.push("");
+      continue;
+    }
+
+    const words = chunk.split(/\s+/u).filter(Boolean);
+    let current = "";
+
+    for (const word of words) {
+      if (word.length > maxChars) {
+        if (current) {
+          lines.push(current);
+          current = "";
+        }
+        for (let start = 0; start < word.length; start += maxChars) {
+          lines.push(word.slice(start, start + maxChars));
+        }
+        continue;
+      }
+
+      const candidate = current ? `${current} ${word}` : word;
+      if (candidate.length <= maxChars) {
+        current = candidate;
+      } else {
+        lines.push(current);
+        current = word;
+      }
+    }
+
+    if (current) {
+      lines.push(current);
+    }
+  }
+
+  return lines.length ? lines : [""];
+}
+
+function toPdfByteCode(char) {
+  if (char === "€") {
+    return 128;
+  }
+  const code = char.charCodeAt(0);
+  if (code <= 255) {
+    return code;
+  }
+  return 63;
+}
+
+function escapePdfText(text) {
+  let escaped = "";
+
+  for (const char of String(text || "")) {
+    const code = toPdfByteCode(char);
+
+    if (code === 92) {
+      escaped += "\\\\";
+      continue;
+    }
+    if (code === 40) {
+      escaped += "\\(";
+      continue;
+    }
+    if (code === 41) {
+      escaped += "\\)";
+      continue;
+    }
+
+    if (code < 32 || code > 126) {
+      escaped += `\\${code.toString(8).padStart(3, "0")}`;
+    } else {
+      escaped += String.fromCharCode(code);
+    }
+  }
+
+  return escaped;
+}
+
+function buildPdfPageStreams(rows, includeDivider) {
+  const pageWidth = 595.28;
+  const marginX = 34;
+  const marginTop = 805;
+  const marginBottom = 42;
+  const lineHeight = 12.5;
+  const dividerX = pageWidth / 2;
+  const leftX = marginX;
+  const rightX = dividerX + 8;
+  const leftWidth = dividerX - marginX - 10;
+  const rightWidth = pageWidth - marginX - dividerX - 10;
+  const leftChars = Math.max(12, Math.floor(leftWidth / 5.05));
+  const rightChars = Math.max(8, Math.floor(rightWidth / 5.05));
+  const streams = [];
+
+  function textCmd(x, y, text, size = 9) {
+    return `BT /F1 ${formatPdfNumber(size)} Tf 1 0 0 1 ${formatPdfNumber(x)} ${formatPdfNumber(y)} Tm (${escapePdfText(text)}) Tj ET`;
+  }
+
+  function lineCmd(x1, y1, x2, y2, gray = 0.76, width = 0.6) {
+    return `${formatPdfNumber(gray)} G ${formatPdfNumber(width)} w ${formatPdfNumber(x1)} ${formatPdfNumber(y1)} m ${formatPdfNumber(x2)} ${formatPdfNumber(y2)} l S`;
+  }
+
+  function startPage(commands) {
+    commands.push(textCmd(leftX, marginTop, "Eingabe", 9.2));
+    commands.push(textCmd(rightX, marginTop, "Ergebnis", 9.2));
+    commands.push(lineCmd(marginX, marginTop - 4, pageWidth - marginX, marginTop - 4, 0.72, 0.7));
+    if (includeDivider) {
+      commands.push(lineCmd(dividerX, marginBottom, dividerX, marginTop + 8, 0.82, 0.7));
+    }
+  }
+
+  let commands = [];
+  let y = marginTop - 20;
+  startPage(commands);
+
+  for (const row of rows) {
+    const leftLines = wrapTextForPdf(row.input, leftChars);
+    const rightLines = wrapTextForPdf(row.result, rightChars);
+    const logicalHeight = Math.max(leftLines.length, rightLines.length);
+
+    if (y - logicalHeight * lineHeight < marginBottom) {
+      streams.push(commands.join("\n"));
+      commands = [];
+      y = marginTop - 20;
+      startPage(commands);
+    }
+
+    for (let lineIndex = 0; lineIndex < logicalHeight; lineIndex += 1) {
+      const leftText = leftLines[lineIndex] || "";
+      const rightText = rightLines[lineIndex] || "";
+      if (leftText) {
+        commands.push(textCmd(leftX, y, leftText));
+      }
+      if (rightText) {
+        commands.push(textCmd(rightX, y, rightText));
+      }
+      y -= lineHeight;
+    }
+
+    y -= 1.8;
+  }
+
+  streams.push(commands.join("\n"));
+  return streams;
+}
+
+function buildPdfDocument(pageStreams) {
+  const objects = [];
+  objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
+
+  const kids = [];
+  for (let index = 0; index < pageStreams.length; index += 1) {
+    kids.push(`${4 + index * 2} 0 R`);
+  }
+  objects[2] = `<< /Type /Pages /Kids [${kids.join(" ")}] /Count ${pageStreams.length} >>`;
+  objects[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>";
+
+  for (let index = 0; index < pageStreams.length; index += 1) {
+    const pageObject = 4 + index * 2;
+    const contentObject = pageObject + 1;
+    const stream = pageStreams[index];
+
+    objects[pageObject] = "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R >> >> /Contents " + contentObject + " 0 R >>";
+    objects[contentObject] = `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`;
+  }
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+
+  for (let index = 1; index < objects.length; index += 1) {
+    offsets[index] = pdf.length;
+    pdf += `${index} 0 obj\n${objects[index]}\nendobj\n`;
+  }
+
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length}\n`;
+  pdf += "0000000000 65535 f \n";
+  for (let index = 1; index < objects.length; index += 1) {
+    pdf += `${String(offsets[index]).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return pdf;
+}
+
+function exportPdf(includeDivider) {
+  const rows = createExportRows();
+  const streams = buildPdfPageStreams(rows, includeDivider);
+  const pdfContent = buildPdfDocument(streams);
+  const blob = new Blob([pdfContent], { type: "application/pdf" });
+  const suffix = includeDivider ? "mit-trennstrich" : "ohne-trennstrich";
+  downloadBlob(blob, createExportFilename("pdf", suffix));
+}
+
 function persistViewMode(mode) {
   if (typeof window === "undefined" || !window.localStorage) {
     return;
@@ -1065,6 +1343,7 @@ function applyViewMode(mode, shouldPersist = true) {
 
   if (isFull) {
     toggleHelpPopover(false);
+    toggleDownloadPopover(false);
   }
 
   if (shouldPersist) {
@@ -1075,6 +1354,15 @@ function applyViewMode(mode, shouldPersist = true) {
 function toggleViewMode() {
   const isCurrentlyFull = Boolean(appEl && appEl.classList && appEl.classList.contains("fullsize"));
   applyViewMode(isCurrentlyFull ? VIEW_MODE_STANDARD : VIEW_MODE_FULL);
+}
+
+function toggleDownloadPopover(forceOpen) {
+  if (!downloadPopoverEl || !downloadChipEl) {
+    return;
+  }
+  const shouldOpen = typeof forceOpen === "boolean" ? forceOpen : Boolean(downloadPopoverEl.hidden);
+  downloadPopoverEl.hidden = !shouldOpen;
+  downloadChipEl.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
 }
 
 function toggleHelpPopover(forceOpen) {
@@ -1099,7 +1387,16 @@ inputEl.addEventListener("scroll", syncScrollFromInput);
 if (helpChipEl && helpPopoverEl && typeof helpChipEl.addEventListener === "function") {
   helpChipEl.addEventListener("click", (event) => {
     event.stopPropagation();
+    toggleDownloadPopover(false);
     toggleHelpPopover();
+  });
+}
+
+if (downloadChipEl && downloadPopoverEl && typeof downloadChipEl.addEventListener === "function") {
+  downloadChipEl.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleHelpPopover(false);
+    toggleDownloadPopover();
   });
 }
 
@@ -1107,6 +1404,28 @@ if (loadDemoBtnEl && typeof loadDemoBtnEl.addEventListener === "function") {
   loadDemoBtnEl.addEventListener("click", () => {
     setInputAndRecalculate(INITIAL_TEXT);
     toggleHelpPopover(false);
+    toggleDownloadPopover(false);
+  });
+}
+
+if (exportPdfDividerBtnEl && typeof exportPdfDividerBtnEl.addEventListener === "function") {
+  exportPdfDividerBtnEl.addEventListener("click", () => {
+    exportPdf(true);
+    toggleDownloadPopover(false);
+  });
+}
+
+if (exportPdfPlainBtnEl && typeof exportPdfPlainBtnEl.addEventListener === "function") {
+  exportPdfPlainBtnEl.addEventListener("click", () => {
+    exportPdf(false);
+    toggleDownloadPopover(false);
+  });
+}
+
+if (exportMdBtnEl && typeof exportMdBtnEl.addEventListener === "function") {
+  exportMdBtnEl.addEventListener("click", () => {
+    exportMarkdownTable();
+    toggleDownloadPopover(false);
   });
 }
 
@@ -1124,7 +1443,9 @@ if (resizeFloatEl && typeof resizeFloatEl.addEventListener === "function") {
 
 if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
   document.addEventListener("click", (event) => {
-    if (!helpPopoverEl || !helpChipEl || helpPopoverEl.hidden) {
+    const helpOpen = Boolean(helpPopoverEl && !helpPopoverEl.hidden);
+    const downloadOpen = Boolean(downloadPopoverEl && !downloadPopoverEl.hidden);
+    if (!helpOpen && !downloadOpen) {
       return;
     }
     const target = event.target;
@@ -1132,11 +1453,13 @@ if (typeof document !== "undefined" && typeof document.addEventListener === "fun
       return;
     }
     toggleHelpPopover(false);
+    toggleDownloadPopover(false);
   });
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       toggleHelpPopover(false);
+      toggleDownloadPopover(false);
     }
   });
 }

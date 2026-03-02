@@ -111,6 +111,50 @@ body {
   z-index: 30;
 }
 
+.download-popover {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 2.2rem;
+  width: min(15.8rem, calc(100vw - 2rem));
+  border-radius: 12px;
+  border: 1px solid #bad0ed;
+  background: #f8fbff;
+  color: #173153;
+  box-shadow: 0 14px 28px rgba(11, 26, 53, 0.28);
+  padding: 0.7rem;
+  z-index: 31;
+}
+
+.download-popover h2 {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #2d4f7f;
+}
+
+.download-option {
+  width: 100%;
+  border: 1px solid #cad9ee;
+  border-radius: 8px;
+  padding: 0.46rem 0.52rem;
+  text-align: left;
+  color: #193963;
+  background: #ffffff;
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.download-option + .download-option {
+  margin-top: 0.42rem;
+}
+
+.download-option:hover,
+.download-option:focus-visible {
+  background: #e8f1ff;
+}
+
 .help-popover h2 {
   margin: 0.2rem 0 0.35rem;
   font-size: 0.78rem;
@@ -300,6 +344,11 @@ body {
     width: min(31rem, calc(100vw - 1.5rem));
     right: -0.15rem;
     max-height: 70vh;
+  }
+
+  .download-popover {
+    width: min(15.8rem, calc(100vw - 1.5rem));
+    right: 2.05rem;
   }
 
   .resize-float {
