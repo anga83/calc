@@ -2032,6 +2032,15 @@ function buildPdfInputSegments(line) {
   return getLineHighlightSegments(line || "");
 }
 
+function buildPdfResultSegments(result, lineNumberPrefix) {
+  const segments = [];
+  if (lineNumberPrefix) {
+    segments.push({ text: lineNumberPrefix, kind: "line-number" });
+  }
+  segments.push({ text: result || "", kind: "plain" });
+  return segments;
+}
+
 function wrapSegmentsForPdf(segments, maxChars) {
   const lines = [];
   let currentLine = [];
@@ -2154,13 +2163,14 @@ function buildPdfPageStreams(rows, includeDivider) {
 
   for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
     const row = rows[rowIndex];
-    const lineNumberPrefix = appSettings.lineNumbers ? `${rowIndex + 1} ` : "";
+    const lineNumberPrefix = appSettings.lineNumbers ? `${rowIndex + 1}  ` : "";
     const leftSegments = buildPdfInputSegments(row.input);
     if (lineNumberPrefix) {
       leftSegments.unshift({ text: lineNumberPrefix, kind: "line-number" });
     }
+    const rightSegments = buildPdfResultSegments(row.result, lineNumberPrefix);
     const leftLines = wrapSegmentsForPdf(leftSegments, leftChars);
-    const rightLines = wrapTextForPdf(`${lineNumberPrefix}${row.result}`, rightChars);
+    const rightLines = wrapSegmentsForPdf(rightSegments, rightChars);
     const logicalHeight = Math.max(leftLines.length, rightLines.length);
 
     if (y - logicalHeight * lineHeight < marginBottom) {
@@ -2172,7 +2182,7 @@ function buildPdfPageStreams(rows, includeDivider) {
 
     for (let lineIndex = 0; lineIndex < logicalHeight; lineIndex += 1) {
       const leftLineSegments = leftLines[lineIndex] || [{ text: "", kind: "plain" }];
-      const rightText = rightLines[lineIndex] || "";
+      const rightLineSegments = rightLines[lineIndex] || [{ text: "", kind: "plain" }];
 
       let leftCursorX = leftX;
       for (const segment of leftLineSegments) {
@@ -2183,8 +2193,13 @@ function buildPdfPageStreams(rows, includeDivider) {
         leftCursorX += segment.text.length * 5.05;
       }
 
-      if (rightText) {
-        commands.push(textCmd(rightX, y, rightText));
+      let rightCursorX = rightX;
+      for (const segment of rightLineSegments) {
+        if (!segment.text) {
+          continue;
+        }
+        commands.push(textCmd(rightCursorX, y, segment.text, 9, colorForHighlightKind(segment.kind)));
+        rightCursorX += segment.text.length * 5.05;
       }
       y -= lineHeight;
     }
