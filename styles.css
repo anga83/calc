@@ -279,6 +279,34 @@ body {
   font-size: 0.77rem;
 }
 
+.help-link {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  color: #355a89;
+}
+
+.help-link a {
+  color: #1d68c8;
+}
+
+.mathjs-help {
+  margin: 0 0 0.65rem;
+}
+
+.mathjs-chip {
+  display: inline-block;
+  margin-right: 0.3rem;
+  padding: 0.06rem 0.34rem;
+  border-radius: 999px;
+  border: 1px solid #9fc2ee;
+  background: #e5f0ff;
+  color: #245899;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
 .demo-btn {
   border: 0;
   border-radius: 8px;
@@ -351,8 +379,16 @@ body {
   font-weight: 700;
 }
 
+.input-editor {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #fcfdff;
+}
+
 #sheet-input,
-#sheet-results {
+#sheet-results,
+#sheet-highlight {
   width: 100%;
   height: 100%;
   margin: 0;
@@ -365,14 +401,60 @@ body {
 }
 
 #sheet-input {
+  position: absolute;
+  inset: 0;
   resize: none;
   color: #11233d;
-  background: #fcfdff;
+  background: transparent;
   caret-color: var(--accent);
 }
 
 #sheet-results {
   background: #fafcff;
+}
+
+#sheet-highlight {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  color: #11233d;
+  display: none;
+}
+
+.app.syntax-highlight #sheet-highlight {
+  display: block;
+}
+
+.app.syntax-highlight #sheet-input {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.app.syntax-highlight #sheet-input::selection {
+  background: rgba(42, 116, 204, 0.25);
+}
+
+.hl-comment {
+  color: #8c96aa;
+}
+
+.hl-operator {
+  color: #2460ba;
+  font-weight: 600;
+}
+
+.hl-number {
+  color: #1b7f4f;
+}
+
+.hl-boolean {
+  color: #7b3ab3;
+  font-weight: 600;
+}
+
+.hl-ref {
+  color: #ac5d0c;
 }
 
 .result-line {
@@ -464,7 +546,8 @@ body {
   }
 
   #sheet-input,
-  #sheet-results {
+  #sheet-results,
+  #sheet-highlight {
     padding: 0.65rem 0.7rem 0.9rem;
     font-size: 0.9rem;
   }

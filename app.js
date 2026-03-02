@@ -1,10 +1,12 @@
 "use strict";
 
 const inputEl = document.getElementById("sheet-input");
+const highlightEl = document.getElementById("sheet-highlight");
 const resultsEl = document.getElementById("sheet-results");
 const appEl = document.getElementById("app-root");
 const helpChipEl = document.getElementById("help-chip");
 const helpPopoverEl = document.getElementById("help-popover");
+const mathJsHelpEl = document.getElementById("mathjs-help");
 const downloadChipEl = document.getElementById("download-chip");
 const downloadPopoverEl = document.getElementById("download-popover");
 const settingsChipEl = document.getElementById("settings-chip");
@@ -15,7 +17,9 @@ const exportPdfPlainBtnEl = document.getElementById("export-pdf-plain-btn");
 const exportMdBtnEl = document.getElementById("export-md-btn");
 const settingUseMathJsEl = document.getElementById("setting-use-mathjs");
 const settingDecimalsEl = document.getElementById("setting-decimals");
+const settingIntegerNoDecimalsEl = document.getElementById("setting-integer-no-decimals");
 const settingPreciseIntermediateEl = document.getElementById("setting-precise-intermediate");
+const settingSyntaxHighlightEl = document.getElementById("setting-syntax-highlighting");
 const mathJsStatusEl = document.getElementById("mathjs-status");
 const resizeChipEl = document.getElementById("resize-chip");
 const resizeFloatEl = document.getElementById("resize-float");
@@ -46,7 +50,9 @@ const MATHJS_CDN_URL = "https://cdn.jsdelivr.net/npm/mathjs@13.2.2/lib/browser/m
 const DEFAULT_SETTINGS = Object.freeze({
   useMathJs: false,
   decimalPlaces: 4,
+  integerNoDecimals: false,
   preciseIntermediates: true,
+  syntaxHighlighting: false,
 });
 
 const unitDefs = {
@@ -239,25 +245,42 @@ const unitAliases = new Map([
 ]);
 
 const operatorPrecedence = {
-  in: 1,
-  to: 1,
-  as: 1,
-  on: 2,
-  off: 2,
-  "+": 2,
-  "-": 2,
-  "*": 3,
-  "/": 3,
-  of: 3,
-  implicit: 3,
-  "^": 4,
+  ">": 1,
+  ">=": 1,
+  "<": 1,
+  "<=": 1,
+  "==": 1,
+  "!=": 1,
+  in: 2,
+  to: 2,
+  as: 2,
+  on: 3,
+  off: 3,
+  "+": 3,
+  "-": 3,
+  "*": 4,
+  "/": 4,
+  of: 4,
+  von: 4,
+  implicit: 4,
+  "^": 5,
 };
 
 const constants = {
   pi: { value: Math.PI },
   "π": { value: Math.PI },
   e: { value: Math.E },
+  true: { value: 1, isBoolean: true },
+  false: { value: 0, isBoolean: true },
+  wahr: { value: 1, isBoolean: true },
+  falsch: { value: 0, isBoolean: true },
 };
+
+const wordOperators = new Set(["in", "to", "as", "of", "von", "on", "off", "plus", "minus", "mal", "min", "max"]);
+const operatorWordTestRegex = /^(?:in|to|as|of|von|on|off|plus|minus|mal|min|max)$/iu;
+const numberTokenRegex = /^(?:\d[\d.,]*|,\d+)%?$/u;
+const booleanTokenRegex = /^(?:true|false|wahr|falsch)$/iu;
+const highlightTokenRegex = /(>=|<=|==|!=|[+\-*/^()<>=%;]|@\d+|\b(?:in|to|as|of|von|on|off|plus|minus|mal|min|max)\b|\b(?:true|false|wahr|falsch)\b|(?:\d[\d.,]*|,\d+)%?)/giu;
 
 let lastEvaluation = { lineValues: [] };
 let appSettings = loadPersistedSettings();
@@ -291,6 +314,14 @@ function escapeRegExp(value) {
 }
 
 function stripInlineComment(line) {
+  const commentIndex = findInlineDoubleSlashIndex(line);
+  if (commentIndex === -1) {
+    return line;
+  }
+  return line.slice(0, commentIndex);
+}
+
+function findInlineDoubleSlashIndex(line) {
   let inSingle = false;
   let inDouble = false;
 
@@ -308,11 +339,11 @@ function stripInlineComment(line) {
     }
 
     if (!inSingle && !inDouble && char === "/" && next === "/") {
-      return line.slice(0, i);
+      return i;
     }
   }
 
-  return line;
+  return -1;
 }
 
 function stripTrailingEquals(line) {
@@ -332,7 +363,9 @@ function sanitizeSettings(raw) {
   return {
     useMathJs: Boolean(source.useMathJs),
     decimalPlaces: clampDecimalPlaces(source.decimalPlaces),
+    integerNoDecimals: Boolean(source.integerNoDecimals),
     preciseIntermediates: source.preciseIntermediates !== false,
+    syntaxHighlighting: Boolean(source.syntaxHighlighting),
   };
 }
 
@@ -377,14 +410,33 @@ function tokenize(expression) {
 
   while (i < expression.length) {
     const char = expression[i];
+    const nextTwo = expression.slice(i, i + 2);
 
     if (/\s/u.test(char)) {
       i += 1;
       continue;
     }
 
+    if (nextTwo === ">=" || nextTwo === "<=" || nextTwo === "==" || nextTwo === "!=") {
+      tokens.push({ type: "op", value: nextTwo });
+      i += 2;
+      continue;
+    }
+
+    if (char === ">" || char === "<") {
+      tokens.push({ type: "op", value: char });
+      i += 1;
+      continue;
+    }
+
     if (char === "(" || char === ")" || char === "+" || char === "-" || char === "*" || char === "/" || char === "^") {
       tokens.push({ type: char === "(" ? "lparen" : char === ")" ? "rparen" : "op", value: char });
+      i += 1;
+      continue;
+    }
+
+    if (char === ";") {
+      tokens.push({ type: "sep", value: ";" });
       i += 1;
       continue;
     }
@@ -440,7 +492,7 @@ function tokenize(expression) {
       const rawWord = expression.slice(start, i);
       const lower = rawWord.toLowerCase();
 
-      if (["in", "to", "as", "of", "on", "off"].includes(lower)) {
+      if (wordOperators.has(lower) && !["plus", "minus", "mal", "min", "max"].includes(lower)) {
         tokens.push({ type: "op", value: lower });
       } else if (lower === "mal") {
         tokens.push({ type: "op", value: "*" });
@@ -474,8 +526,9 @@ function injectImplicitOperators(tokens) {
 
     const currentEndsPrimary = current.type === "number" || current.type === "ident" || current.type === "rparen";
     const nextStartsPrimary = next.type === "number" || next.type === "ident" || next.type === "lparen";
+    const isFunctionCallBoundary = current.type === "ident" && next.type === "lparen";
 
-    if (currentEndsPrimary && nextStartsPrimary) {
+    if (currentEndsPrimary && nextStartsPrimary && !isFunctionCallBoundary) {
       output.push({ type: "op", value: "implicit" });
     }
   }
@@ -543,6 +596,29 @@ function parse(tokens) {
     }
 
     if (token.type === "ident") {
+      if (peek() && peek().type === "lparen") {
+        consume();
+        const args = [];
+
+        if (!peek() || peek().type !== "rparen") {
+          while (true) {
+            args.push(parseExpression());
+            if (peek() && peek().type === "sep") {
+              consume();
+              continue;
+            }
+            break;
+          }
+        }
+
+        const closing = consume();
+        if (!closing || closing.type !== "rparen") {
+          throw new Error("Schließende Klammer fehlt");
+        }
+
+        return { type: "call", name: token.value, args };
+      }
+
       return { type: "identifier", name: token.value };
     }
 
@@ -573,6 +649,7 @@ function makeQuantity(value, options = {}) {
     unit: options.unit || null,
     dimension: options.dimension || null,
     isPercent: options.isPercent || false,
+    isBoolean: options.isBoolean || false,
   };
 }
 
@@ -582,6 +659,7 @@ function cloneQuantity(quantity) {
     unit: quantity.unit,
     dimension: quantity.dimension,
     isPercent: quantity.isPercent,
+    isBoolean: quantity.isBoolean || false,
   };
 }
 
@@ -644,98 +722,174 @@ function convertToUnit(quantity, targetUnitKey) {
   return makeQuantity(converted, { unit: targetUnitKey, dimension: targetDef.dimension, isPercent: quantity.isPercent });
 }
 
+function toNumericValue(quantity) {
+  if (quantity.isBoolean) {
+    return quantity.value ? 1 : 0;
+  }
+  if (!Number.isFinite(quantity.value)) {
+    throw new Error("Ungültiger numerischer Wert");
+  }
+  return quantity.value;
+}
+
+function toArithmeticQuantity(quantity) {
+  if (!quantity.isBoolean) {
+    return quantity;
+  }
+  return makeQuantity(quantity.value ? 1 : 0, {
+    unit: quantity.unit,
+    dimension: quantity.dimension,
+    isPercent: quantity.isPercent,
+    isBoolean: false,
+  });
+}
+
+function normalizeComparablePair(left, right) {
+  const leftArithmetic = toArithmeticQuantity(left);
+  const rightArithmetic = toArithmeticQuantity(right);
+
+  if (leftArithmetic.unit && rightArithmetic.unit) {
+    if (leftArithmetic.dimension !== rightArithmetic.dimension) {
+      throw new Error("Vergleich zwischen unterschiedlichen Einheiten ist nicht möglich");
+    }
+    return {
+      left: leftArithmetic,
+      right: convertToUnit(rightArithmetic, leftArithmetic.unit),
+    };
+  }
+
+  if (leftArithmetic.unit || rightArithmetic.unit) {
+    throw new Error("Vergleich zwischen Wert mit und ohne Einheit ist nicht möglich");
+  }
+
+  return { left: leftArithmetic, right: rightArithmetic };
+}
+
 function ensureCompatibleForSum(left, right) {
-  if (left.unit && right.unit) {
-    if (left.dimension !== right.dimension) {
+  const leftArithmetic = toArithmeticQuantity(left);
+  const rightArithmetic = toArithmeticQuantity(right);
+
+  if (leftArithmetic.unit && rightArithmetic.unit) {
+    if (leftArithmetic.dimension !== rightArithmetic.dimension) {
       throw new Error("Einheiten mit unterschiedlicher Dimension können nicht addiert werden");
     }
-    return { left, right: convertToUnit(right, left.unit), unit: left.unit, dimension: left.dimension };
+    return {
+      left: leftArithmetic,
+      right: convertToUnit(rightArithmetic, leftArithmetic.unit),
+      unit: leftArithmetic.unit,
+      dimension: leftArithmetic.dimension,
+    };
   }
 
-  if (left.unit && !right.unit) {
-    return { left, right: makeQuantity(right.value, { unit: left.unit, dimension: left.dimension }), unit: left.unit, dimension: left.dimension };
+  if (leftArithmetic.unit && !rightArithmetic.unit) {
+    return {
+      left: leftArithmetic,
+      right: makeQuantity(toNumericValue(rightArithmetic), { unit: leftArithmetic.unit, dimension: leftArithmetic.dimension }),
+      unit: leftArithmetic.unit,
+      dimension: leftArithmetic.dimension,
+    };
   }
 
-  if (!left.unit && right.unit) {
-    return { left: makeQuantity(left.value, { unit: right.unit, dimension: right.dimension }), right, unit: right.unit, dimension: right.dimension };
+  if (!leftArithmetic.unit && rightArithmetic.unit) {
+    return {
+      left: makeQuantity(toNumericValue(leftArithmetic), { unit: rightArithmetic.unit, dimension: rightArithmetic.dimension }),
+      right: rightArithmetic,
+      unit: rightArithmetic.unit,
+      dimension: rightArithmetic.dimension,
+    };
   }
 
-  return { left, right, unit: null, dimension: null };
+  return { left: leftArithmetic, right: rightArithmetic, unit: null, dimension: null };
 }
 
 function applyPlus(left, right) {
-  if (!left.isPercent && right.isPercent) {
-    return makeQuantity(left.value * (1 + right.value), {
-      unit: left.unit,
-      dimension: left.dimension,
+  const leftArithmetic = toArithmeticQuantity(left);
+  const rightArithmetic = toArithmeticQuantity(right);
+
+  if (!leftArithmetic.isPercent && rightArithmetic.isPercent) {
+    return makeQuantity(toNumericValue(leftArithmetic) * (1 + toNumericValue(rightArithmetic)), {
+      unit: leftArithmetic.unit,
+      dimension: leftArithmetic.dimension,
       isPercent: false,
     });
   }
 
-  const aligned = ensureCompatibleForSum(left, right);
+  const aligned = ensureCompatibleForSum(leftArithmetic, rightArithmetic);
   const sum = aligned.left.value + aligned.right.value;
-  return makeQuantity(sum, { unit: aligned.unit, dimension: aligned.dimension, isPercent: left.isPercent && right.isPercent });
+  return makeQuantity(sum, { unit: aligned.unit, dimension: aligned.dimension, isPercent: leftArithmetic.isPercent && rightArithmetic.isPercent });
 }
 
 function applyMinus(left, right) {
-  if (!left.isPercent && right.isPercent) {
-    return makeQuantity(left.value * (1 - right.value), {
-      unit: left.unit,
-      dimension: left.dimension,
+  const leftArithmetic = toArithmeticQuantity(left);
+  const rightArithmetic = toArithmeticQuantity(right);
+
+  if (!leftArithmetic.isPercent && rightArithmetic.isPercent) {
+    return makeQuantity(toNumericValue(leftArithmetic) * (1 - toNumericValue(rightArithmetic)), {
+      unit: leftArithmetic.unit,
+      dimension: leftArithmetic.dimension,
       isPercent: false,
     });
   }
 
-  const aligned = ensureCompatibleForSum(left, right);
+  const aligned = ensureCompatibleForSum(leftArithmetic, rightArithmetic);
   const diff = aligned.left.value - aligned.right.value;
-  return makeQuantity(diff, { unit: aligned.unit, dimension: aligned.dimension, isPercent: left.isPercent && right.isPercent });
+  return makeQuantity(diff, { unit: aligned.unit, dimension: aligned.dimension, isPercent: leftArithmetic.isPercent && rightArithmetic.isPercent });
 }
 
 function applyMultiply(left, right) {
-  if (left.unit && right.unit) {
+  const leftArithmetic = toArithmeticQuantity(left);
+  const rightArithmetic = toArithmeticQuantity(right);
+
+  if (leftArithmetic.unit && rightArithmetic.unit) {
     throw new Error("Multiplikation zweier Einheiten ist hier nicht unterstützt");
   }
 
-  if (left.unit) {
-    return makeQuantity(left.value * right.value, { unit: left.unit, dimension: left.dimension });
+  if (leftArithmetic.unit) {
+    return makeQuantity(toNumericValue(leftArithmetic) * toNumericValue(rightArithmetic), { unit: leftArithmetic.unit, dimension: leftArithmetic.dimension });
   }
 
-  if (right.unit) {
-    return makeQuantity(left.value * right.value, { unit: right.unit, dimension: right.dimension });
+  if (rightArithmetic.unit) {
+    return makeQuantity(toNumericValue(leftArithmetic) * toNumericValue(rightArithmetic), { unit: rightArithmetic.unit, dimension: rightArithmetic.dimension });
   }
 
-  return makeQuantity(left.value * right.value);
+  return makeQuantity(toNumericValue(leftArithmetic) * toNumericValue(rightArithmetic));
 }
 
 function applyDivision(left, right) {
-  if (right.value === 0) {
+  const leftArithmetic = toArithmeticQuantity(left);
+  const rightArithmetic = toArithmeticQuantity(right);
+
+  if (toNumericValue(rightArithmetic) === 0) {
     throw new Error("Division durch 0");
   }
 
-  if (left.unit && right.unit) {
-    if (left.dimension !== right.dimension) {
+  if (leftArithmetic.unit && rightArithmetic.unit) {
+    if (leftArithmetic.dimension !== rightArithmetic.dimension) {
       throw new Error("Division mit unterschiedlichen Einheiten ist nicht unterstützt");
     }
-    const convertedRight = convertToUnit(right, left.unit);
-    return makeQuantity(left.value / convertedRight.value);
+    const convertedRight = convertToUnit(rightArithmetic, leftArithmetic.unit);
+    return makeQuantity(toNumericValue(leftArithmetic) / toNumericValue(convertedRight));
   }
 
-  if (!left.unit && right.unit) {
+  if (!leftArithmetic.unit && rightArithmetic.unit) {
     throw new Error("Division durch einen Einheitenwert ist nicht unterstützt");
   }
 
-  if (left.unit && !right.unit) {
-    return makeQuantity(left.value / right.value, { unit: left.unit, dimension: left.dimension });
+  if (leftArithmetic.unit && !rightArithmetic.unit) {
+    return makeQuantity(toNumericValue(leftArithmetic) / toNumericValue(rightArithmetic), { unit: leftArithmetic.unit, dimension: leftArithmetic.dimension });
   }
 
-  return makeQuantity(left.value / right.value);
+  return makeQuantity(toNumericValue(leftArithmetic) / toNumericValue(rightArithmetic));
 }
 
 function applyPower(left, right) {
-  if (left.unit || right.unit) {
+  const leftArithmetic = toArithmeticQuantity(left);
+  const rightArithmetic = toArithmeticQuantity(right);
+
+  if (leftArithmetic.unit || rightArithmetic.unit) {
     throw new Error("Potenzen mit Einheiten sind nicht unterstützt");
   }
-  return makeQuantity(left.value ** right.value);
+  return makeQuantity(toNumericValue(leftArithmetic) ** toNumericValue(rightArithmetic));
 }
 
 function applyConversion(left, right) {
@@ -753,6 +907,78 @@ function applyConversion(left, right) {
   throw new Error("Umrechnung benötigt einen Wert mit Einheit und eine Ziel-Einheit");
 }
 
+function applyComparison(left, right, operator) {
+  const normalized = normalizeComparablePair(left, right);
+  const leftValue = toNumericValue(normalized.left);
+  const rightValue = toNumericValue(normalized.right);
+  let result = false;
+
+  switch (operator) {
+    case ">":
+      result = leftValue > rightValue;
+      break;
+    case ">=":
+      result = leftValue >= rightValue;
+      break;
+    case "<":
+      result = leftValue < rightValue;
+      break;
+    case "<=":
+      result = leftValue <= rightValue;
+      break;
+    case "==":
+      result = leftValue === rightValue;
+      break;
+    case "!=":
+      result = leftValue !== rightValue;
+      break;
+    default:
+      throw new Error(`Vergleichsoperator nicht unterstützt: ${operator}`);
+  }
+
+  return makeQuantity(result ? 1 : 0, { isBoolean: true });
+}
+
+function applyMinMaxCall(functionName, args) {
+  if (!args.length) {
+    throw new Error(`${functionName} benötigt mindestens ein Argument`);
+  }
+
+  const normalizedArgs = args.map((arg) => toArithmeticQuantity(arg));
+  const hasUnit = normalizedArgs.some((arg) => arg.unit);
+  const hasUnitless = normalizedArgs.some((arg) => !arg.unit);
+
+  if (hasUnit && hasUnitless) {
+    throw new Error(`${functionName} kann Werte mit und ohne Einheit nicht mischen`);
+  }
+
+  let candidates = normalizedArgs.map((arg) => cloneQuantity(arg));
+  if (hasUnit) {
+    const baseUnit = candidates[0].unit;
+    const baseDimension = candidates[0].dimension;
+    candidates = candidates.map((candidate) => {
+      if (candidate.dimension !== baseDimension) {
+        throw new Error(`${functionName} benötigt kompatible Einheiten`);
+      }
+      return convertToUnit(candidate, baseUnit);
+    });
+  }
+
+  let selected = candidates[0];
+  for (let i = 1; i < candidates.length; i += 1) {
+    const current = candidates[i];
+    const shouldTakeCurrent = functionName === "min"
+      ? toNumericValue(current) < toNumericValue(selected)
+      : toNumericValue(current) > toNumericValue(selected);
+    if (shouldTakeCurrent) {
+      selected = current;
+    }
+  }
+
+  selected.isBoolean = false;
+  return selected;
+}
+
 function evaluateAst(node, context) {
   if (node.type === "number") {
     return makeQuantity(node.value, { isPercent: node.isPercent });
@@ -762,12 +988,21 @@ function evaluateAst(node, context) {
     return resolveIdentifier(node.name, context);
   }
 
+  if (node.type === "call") {
+    const functionName = node.name.toLowerCase();
+    const argValues = node.args.map((arg) => evaluateAst(arg, context));
+    if (functionName === "min" || functionName === "max") {
+      return applyMinMaxCall(functionName, argValues);
+    }
+    throw new Error(`Unbekannte Funktion: ${node.name}`);
+  }
+
   if (node.type === "unary") {
-    const arg = evaluateAst(node.argument, context);
+    const arg = toArithmeticQuantity(evaluateAst(node.argument, context));
     if (node.op === "+") {
       return arg;
     }
-    return makeQuantity(-arg.value, {
+    return makeQuantity(-toNumericValue(arg), {
       unit: arg.unit,
       dimension: arg.dimension,
       isPercent: arg.isPercent,
@@ -785,6 +1020,7 @@ function evaluateAst(node, context) {
         return applyMinus(left, right);
       case "*":
       case "of":
+      case "von":
         return applyMultiply(left, right);
       case "/":
         return applyDivision(left, right);
@@ -800,6 +1036,13 @@ function evaluateAst(node, context) {
         return applyMinus(right, left);
       case "implicit":
         return applyMultiply(left, right);
+      case ">":
+      case ">=":
+      case "<":
+      case "<=":
+      case "==":
+      case "!=":
+        return applyComparison(left, right, node.op);
       default:
         throw new Error(`Operator nicht unterstützt: ${node.op}`);
     }
@@ -813,7 +1056,8 @@ function preprocessExpression(expression, variables, lineValues) {
     .replace(/×/gu, "*")
     .replace(/÷/gu, "/")
     .replace(/[–—]/gu, "-")
-    .replace(/\bprozent\b/giu, "%");
+    .replace(/\bprozent\b/giu, "%")
+    .replace(/(\d[\d.,]*|,\d+)\s*%/gu, "$1%");
 
   // Schreibweisen wie "5 h 30 min" werden in "5 h + 30 min" überführt.
   const compoundPattern = /(\d[\d.,]*\s*°?[\p{L}²/]+)\s+(?=\d[\d.,]*\s*°?[\p{L}²/]+)/gu;
@@ -871,24 +1115,45 @@ function preprocessExpression(expression, variables, lineValues) {
 }
 
 function parseAssignment(line) {
-  const match = line.match(/^(.+?)\s*(\+=|-=|=)\s*(.+)$/u);
-  if (!match) {
+  const plusAssign = line.match(/^(.+?)\s*(\+=|-=)\s*(.+)$/u);
+  if (plusAssign) {
+    const lhs = plusAssign[1].trim();
+    const op = plusAssign[2];
+    const rhs = plusAssign[3].trim();
+    if (!lhs || !rhs || /[()*/^]/u.test(lhs)) {
+      return null;
+    }
+    return { lhs, op, rhs };
+  }
+
+  let assignIndex = -1;
+  for (let i = 0; i < line.length; i += 1) {
+    if (line[i] !== "=") {
+      continue;
+    }
+    const prev = i > 0 ? line[i - 1] : "";
+    const next = i + 1 < line.length ? line[i + 1] : "";
+    const isComparison = prev === "<" || prev === ">" || prev === "!" || prev === "=" || next === "=";
+    if (isComparison) {
+      continue;
+    }
+    if (assignIndex !== -1) {
+      return null;
+    }
+    assignIndex = i;
+  }
+
+  if (assignIndex === -1) {
     return null;
   }
 
-  const lhs = match[1].trim();
-  const op = match[2];
-  const rhs = match[3].trim();
-
-  if (!lhs || !rhs) {
+  const lhs = line.slice(0, assignIndex).trim();
+  const rhs = line.slice(assignIndex + 1).trim();
+  if (!lhs || !rhs || /[()*/^]/u.test(lhs)) {
     return null;
   }
 
-  if (/[()*/^]/u.test(lhs)) {
-    return null;
-  }
-
-  return { lhs, op, rhs };
+  return { lhs, op: "=", rhs };
 }
 
 function expandUnitShorthand(line) {
@@ -922,6 +1187,10 @@ function getDisplayFractionDigits() {
   return clampDecimalPlaces(appSettings.decimalPlaces);
 }
 
+function isEffectivelyInteger(value) {
+  return Number.isFinite(value) && Math.abs(value - Math.round(value)) < 1e-12;
+}
+
 function roundToDecimals(value, decimals) {
   if (!Number.isFinite(value)) {
     return value;
@@ -939,6 +1208,9 @@ function quantizeQuantityForStorage(quantity) {
   }
 
   const rounded = cloneQuantity(quantity);
+  if (rounded.isBoolean) {
+    return rounded;
+  }
   const decimals = getDisplayFractionDigits();
 
   if (rounded.isPercent && !rounded.unit) {
@@ -953,14 +1225,19 @@ function quantizeQuantityForStorage(quantity) {
 
 function formatNumber(value, fractionDigits = getDisplayFractionDigits()) {
   const rounded = Object.is(value, -0) ? 0 : value;
+  const resolvedDigits = appSettings.integerNoDecimals && isEffectivelyInteger(rounded) ? 0 : fractionDigits;
   return rounded.toLocaleString("de-DE", {
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: fractionDigits,
+    minimumFractionDigits: resolvedDigits,
+    maximumFractionDigits: resolvedDigits,
     useGrouping: true,
   });
 }
 
 function formatQuantity(quantity) {
+  if (quantity.isBoolean) {
+    return quantity.value ? "true" : "false";
+  }
+
   if (!Number.isFinite(quantity.value)) {
     return "Ungültiges Ergebnis";
   }
@@ -974,6 +1251,119 @@ function formatQuantity(quantity) {
     return number;
   }
   return `${number} ${unitDefs[quantity.unit].symbol}`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function classifyHighlightToken(token) {
+  if (token.startsWith("@")) {
+    return "ref";
+  }
+  if (numberTokenRegex.test(token)) {
+    return "number";
+  }
+  if (booleanTokenRegex.test(token)) {
+    return "boolean";
+  }
+  if (operatorWordTestRegex.test(token) || /^(?:>=|<=|==|!=|[+\-*/^()<>=%;])$/u.test(token)) {
+    return "operator";
+  }
+  return "plain";
+}
+
+function tokenizeForHighlight(code) {
+  const parts = [];
+  let lastIndex = 0;
+  highlightTokenRegex.lastIndex = 0;
+  let match = highlightTokenRegex.exec(code);
+
+  while (match) {
+    if (match.index > lastIndex) {
+      parts.push({ text: code.slice(lastIndex, match.index), kind: "plain" });
+    }
+
+    const token = match[0];
+    parts.push({ text: token, kind: classifyHighlightToken(token) });
+    lastIndex = match.index + token.length;
+    match = highlightTokenRegex.exec(code);
+  }
+
+  if (lastIndex < code.length) {
+    parts.push({ text: code.slice(lastIndex), kind: "plain" });
+  }
+
+  if (!parts.length) {
+    parts.push({ text: code, kind: "plain" });
+  }
+  return parts;
+}
+
+function splitLineForHighlight(line) {
+  const trimmed = line.trimStart();
+  if (trimmed.startsWith("#") || trimmed.startsWith("//")) {
+    return { code: "", comment: line };
+  }
+
+  const inlineCommentIndex = findInlineDoubleSlashIndex(line);
+  if (inlineCommentIndex === -1) {
+    return { code: line, comment: "" };
+  }
+
+  return {
+    code: line.slice(0, inlineCommentIndex),
+    comment: line.slice(inlineCommentIndex),
+  };
+}
+
+function getLineHighlightSegments(line) {
+  const split = splitLineForHighlight(line);
+  const segments = [];
+
+  if (split.code) {
+    segments.push(...tokenizeForHighlight(split.code));
+  } else if (!split.comment) {
+    segments.push({ text: "", kind: "plain" });
+  }
+
+  if (split.comment) {
+    segments.push({ text: split.comment, kind: "comment" });
+  }
+
+  return segments;
+}
+
+function renderHighlightedLineHtml(line) {
+  const segments = getLineHighlightSegments(line);
+  return segments
+    .map((segment) => {
+      const escaped = escapeHtml(segment.text);
+      if (segment.kind === "plain") {
+        return escaped;
+      }
+      return `<span class="hl-${segment.kind}">${escaped}</span>`;
+    })
+    .join("");
+}
+
+function renderInputHighlight() {
+  if (!highlightEl) {
+    return;
+  }
+  if (!appSettings.syntaxHighlighting) {
+    highlightEl.innerHTML = "";
+    return;
+  }
+
+  const lines = inputEl.value.split("\n");
+  const rendered = lines.map((line) => renderHighlightedLineHtml(line)).join("\n");
+  highlightEl.innerHTML = rendered || "";
+  highlightEl.scrollTop = inputEl.scrollTop;
+  highlightEl.scrollLeft = inputEl.scrollLeft;
 }
 
 function getMathJsInstance() {
@@ -1055,6 +1445,7 @@ function normalizeExpressionForMathJs(expression) {
       .replace(/\bplus\b/giu, "+")
       .replace(/\bminus\b/giu, "-")
       .replace(/\bof\b/giu, "*")
+      .replace(/\bvon\b/giu, "*")
   ).toLowerCase();
 }
 
@@ -1091,10 +1482,13 @@ function shouldTryMathJs(preprocessed) {
   if (!appSettings.useMathJs || !getMathJsInstance()) {
     return false;
   }
+  if (/;/u.test(preprocessed.expression)) {
+    return false;
+  }
   if (/%/u.test(preprocessed.expression)) {
     return false;
   }
-  if (/\b(in|to|as|on|off)\b/iu.test(preprocessed.expression)) {
+  if (/\b(in|to|as|on|off|von)\b/iu.test(preprocessed.expression)) {
     return false;
   }
   if (/[€£$°]/u.test(preprocessed.expression)) {
@@ -1151,6 +1545,9 @@ function evaluateExpressionWithMathJs(preprocessed, context) {
 
   const mathExpression = normalizeExpressionForMathJs(preprocessed.expression);
   const result = math.evaluate(mathExpression, scope);
+  if (typeof result === "boolean") {
+    return makeQuantity(result ? 1 : 0, { isBoolean: true });
+  }
   const numeric = toNumericMathValue(result);
   if (!Number.isFinite(numeric)) {
     throw new Error("math.js-Ergebnis ist nicht numerisch");
@@ -1273,6 +1670,7 @@ function recalculate() {
   const evaluation = evaluateSheet(inputEl.value);
   lastEvaluation = evaluation;
   renderResults(evaluation);
+  renderInputHighlight();
 }
 
 function persistInput(value) {
@@ -1390,10 +1788,23 @@ function applySettingsToUi() {
   if (settingDecimalsEl) {
     settingDecimalsEl.value = String(clampDecimalPlaces(appSettings.decimalPlaces));
   }
+  if (settingIntegerNoDecimalsEl) {
+    settingIntegerNoDecimalsEl.checked = appSettings.integerNoDecimals;
+  }
   if (settingPreciseIntermediateEl) {
     settingPreciseIntermediateEl.checked = appSettings.preciseIntermediates;
   }
+  if (settingSyntaxHighlightEl) {
+    settingSyntaxHighlightEl.checked = appSettings.syntaxHighlighting;
+  }
+  if (mathJsHelpEl) {
+    mathJsHelpEl.hidden = !appSettings.useMathJs;
+  }
+  if (appEl && appEl.classList) {
+    appEl.classList.toggle("syntax-highlight", appSettings.syntaxHighlighting);
+  }
   updateMathJsStatus();
+  renderInputHighlight();
 }
 
 function patchSettings(update) {
@@ -1521,6 +1932,72 @@ function wrapTextForPdf(text, maxChars) {
   return lines.length ? lines : [""];
 }
 
+function colorForHighlightKind(kind) {
+  switch (kind) {
+    case "comment":
+      return [0.56, 0.6, 0.67];
+    case "operator":
+      return [0.14, 0.38, 0.73];
+    case "number":
+      return [0.11, 0.5, 0.3];
+    case "boolean":
+      return [0.48, 0.24, 0.69];
+    case "ref":
+      return [0.67, 0.36, 0.05];
+    default:
+      return null;
+  }
+}
+
+function buildPdfInputSegments(line) {
+  if (!appSettings.syntaxHighlighting) {
+    return [{ text: line || "", kind: "plain" }];
+  }
+  return getLineHighlightSegments(line || "");
+}
+
+function wrapSegmentsForPdf(segments, maxChars) {
+  const lines = [];
+  let currentLine = [];
+  let currentLength = 0;
+
+  function pushCurrentLine() {
+    lines.push(currentLine.length ? currentLine : [{ text: "", kind: "plain" }]);
+    currentLine = [];
+    currentLength = 0;
+  }
+
+  for (const segment of segments) {
+    let text = segment.text;
+    if (!text.length) {
+      continue;
+    }
+
+    while (text.length > 0) {
+      const spaceLeft = maxChars - currentLength;
+      if (spaceLeft <= 0) {
+        pushCurrentLine();
+        continue;
+      }
+
+      const slice = text.slice(0, spaceLeft);
+      currentLine.push({ text: slice, kind: segment.kind });
+      currentLength += slice.length;
+      text = text.slice(slice.length);
+
+      if (currentLength >= maxChars) {
+        pushCurrentLine();
+      }
+    }
+  }
+
+  if (currentLine.length || !lines.length) {
+    pushCurrentLine();
+  }
+
+  return lines;
+}
+
 function toPdfByteCode(char) {
   if (char === "€") {
     return 128;
@@ -1576,8 +2053,10 @@ function buildPdfPageStreams(rows, includeDivider) {
   const rightChars = Math.max(8, Math.floor(rightWidth / 5.05));
   const streams = [];
 
-  function textCmd(x, y, text, size = 9) {
-    return `BT /F1 ${formatPdfNumber(size)} Tf 1 0 0 1 ${formatPdfNumber(x)} ${formatPdfNumber(y)} Tm (${escapePdfText(text)}) Tj ET`;
+  function textCmd(x, y, text, size = 9, color = null) {
+    const resolvedColor = color || [0, 0, 0];
+    const colorPrefix = `${formatPdfNumber(resolvedColor[0])} ${formatPdfNumber(resolvedColor[1])} ${formatPdfNumber(resolvedColor[2])} rg `;
+    return `BT ${colorPrefix}/F1 ${formatPdfNumber(size)} Tf 1 0 0 1 ${formatPdfNumber(x)} ${formatPdfNumber(y)} Tm (${escapePdfText(text)}) Tj ET`;
   }
 
   function lineCmd(x1, y1, x2, y2, gray = 0.76, width = 0.6) {
@@ -1598,7 +2077,8 @@ function buildPdfPageStreams(rows, includeDivider) {
   startPage(commands);
 
   for (const row of rows) {
-    const leftLines = wrapTextForPdf(row.input, leftChars);
+    const leftSegments = buildPdfInputSegments(row.input);
+    const leftLines = wrapSegmentsForPdf(leftSegments, leftChars);
     const rightLines = wrapTextForPdf(row.result, rightChars);
     const logicalHeight = Math.max(leftLines.length, rightLines.length);
 
@@ -1610,11 +2090,18 @@ function buildPdfPageStreams(rows, includeDivider) {
     }
 
     for (let lineIndex = 0; lineIndex < logicalHeight; lineIndex += 1) {
-      const leftText = leftLines[lineIndex] || "";
+      const leftLineSegments = leftLines[lineIndex] || [{ text: "", kind: "plain" }];
       const rightText = rightLines[lineIndex] || "";
-      if (leftText) {
-        commands.push(textCmd(leftX, y, leftText));
+
+      let leftCursorX = leftX;
+      for (const segment of leftLineSegments) {
+        if (!segment.text) {
+          continue;
+        }
+        commands.push(textCmd(leftCursorX, y, segment.text, 9, colorForHighlightKind(segment.kind)));
+        leftCursorX += segment.text.length * 5.05;
       }
+
       if (rightText) {
         commands.push(textCmd(rightX, y, rightText));
       }
@@ -1765,12 +2252,34 @@ function toggleHelpPopover(forceOpen) {
 
 function syncScrollFromInput() {
   resultsEl.scrollTop = inputEl.scrollTop;
+  if (highlightEl) {
+    highlightEl.scrollTop = inputEl.scrollTop;
+    highlightEl.scrollLeft = inputEl.scrollLeft;
+  }
 }
 
 inputEl.addEventListener("input", () => {
   persistInput(inputEl.value);
   recalculate();
 });
+
+inputEl.addEventListener("keydown", (event) => {
+  if (event.key !== "Tab") {
+    return;
+  }
+  event.preventDefault();
+
+  const start = inputEl.selectionStart;
+  const end = inputEl.selectionEnd;
+  const value = inputEl.value;
+  const indent = "    ";
+  inputEl.value = `${value.slice(0, start)}${indent}${value.slice(end)}`;
+  inputEl.selectionStart = start + indent.length;
+  inputEl.selectionEnd = start + indent.length;
+  persistInput(inputEl.value);
+  recalculate();
+});
+
 inputEl.addEventListener("scroll", syncScrollFromInput);
 
 if (helpChipEl && helpPopoverEl && typeof helpChipEl.addEventListener === "function") {
@@ -1848,9 +2357,21 @@ if (settingDecimalsEl && typeof settingDecimalsEl.addEventListener === "function
   });
 }
 
+if (settingIntegerNoDecimalsEl && typeof settingIntegerNoDecimalsEl.addEventListener === "function") {
+  settingIntegerNoDecimalsEl.addEventListener("change", () => {
+    patchSettings({ integerNoDecimals: settingIntegerNoDecimalsEl.checked });
+  });
+}
+
 if (settingPreciseIntermediateEl && typeof settingPreciseIntermediateEl.addEventListener === "function") {
   settingPreciseIntermediateEl.addEventListener("change", () => {
     patchSettings({ preciseIntermediates: settingPreciseIntermediateEl.checked });
+  });
+}
+
+if (settingSyntaxHighlightEl && typeof settingSyntaxHighlightEl.addEventListener === "function") {
+  settingSyntaxHighlightEl.addEventListener("change", () => {
+    patchSettings({ syntaxHighlighting: settingSyntaxHighlightEl.checked });
   });
 }
 

@@ -31,13 +31,27 @@
             <h2>Syntax</h2>
             <ul>
               <li>Arithmetik: <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>^</code></li>
-              <li>Text-Operatoren: <code>plus</code>, <code>minus</code>, <code>mal</code>, <code>of</code>, <code>on</code>, <code>off</code></li>
+              <li>Text-Operatoren: <code>plus</code>, <code>minus</code>, <code>mal</code>, <code>of</code>, <code>von</code>, <code>on</code>, <code>off</code></li>
               <li>Umrechnung: <code>in</code>, <code>to</code>, <code>as</code>, Kurzform: <code>km m</code></li>
               <li>Zuweisung: <code>=</code>, <code>+=</code>, <code>-=</code></li>
               <li>Referenzen: <code>@3</code> (Zeile 3), <code>ans</code>/<code>last</code></li>
+              <li>Vergleiche: <code>&gt;</code>, <code>&gt;=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>==</code>, <code>!=</code></li>
+              <li>Funktionen: <code>min(...)</code>, <code>max(...)</code> (z. B. <code>min(3;5)</code>)</li>
               <li>Kommentare: Zeilen mit <code>#</code> oder <code>//</code></li>
               <li>Ein trailing <code>=</code> wird ignoriert: <code>1 + 2 =</code></li>
             </ul>
+            <p class="help-link">Weiterführende Syntax: <a href="https://mathjs.org/docs/expressions/syntax.html" target="_blank" rel="noopener noreferrer">mathjs.org/docs/expressions/syntax.html</a></p>
+
+            <div id="mathjs-help" class="mathjs-help" hidden>
+              <h2>Zusätzlich Mit math.js</h2>
+              <ul>
+                <li><span class="mathjs-chip">math.js</span> <code>sqrt(x)</code></li>
+                <li><span class="mathjs-chip">math.js</span> <code>cbrt(x)</code></li>
+                <li><span class="mathjs-chip">math.js</span> <code>abs(x)</code></li>
+                <li><span class="mathjs-chip">math.js</span> <code>sin(x)</code>, <code>cos(x)</code>, <code>tan(x)</code></li>
+                <li><span class="mathjs-chip">math.js</span> <code>log(x)</code>, <code>ln(x)</code>, <code>exp(x)</code></li>
+              </ul>
+            </div>
 
             <h2>Unterstützte Umrechnungen</h2>
             <ul>
@@ -88,10 +102,26 @@
               </select>
             </label>
 
+            <label class="setting-item" for="setting-integer-no-decimals">
+              <span class="setting-label">Ganzzahlen ohne Nachkommastellen</span>
+              <span class="switch">
+                <input id="setting-integer-no-decimals" type="checkbox">
+                <span class="switch-ui"></span>
+              </span>
+            </label>
+
             <label class="setting-item" for="setting-precise-intermediate">
               <span class="setting-label">Mit genauen Zwischenergebnissen rechnen</span>
               <span class="switch">
                 <input id="setting-precise-intermediate" type="checkbox">
+                <span class="switch-ui"></span>
+              </span>
+            </label>
+
+            <label class="setting-item" for="setting-syntax-highlighting">
+              <span class="setting-label">Syntax-Highlighting</span>
+              <span class="switch">
+                <input id="setting-syntax-highlighting" type="checkbox">
                 <span class="switch-ui"></span>
               </span>
             </label>
@@ -103,7 +133,10 @@
     <main class="workspace">
       <section class="pane input-pane">
         <div class="pane-title">Eingaben</div>
-        <textarea id="sheet-input" spellcheck="false" wrap="off" aria-label="Rechenzeilen"></textarea>
+        <div class="input-editor">
+          <pre id="sheet-highlight" aria-hidden="true"></pre>
+          <textarea id="sheet-input" spellcheck="false" wrap="off" aria-label="Rechenzeilen"></textarea>
+        </div>
       </section>
 
       <section class="pane output-pane">
