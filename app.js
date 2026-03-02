@@ -2,7 +2,9 @@
 
 const inputEl = document.getElementById("sheet-input");
 const highlightEl = document.getElementById("sheet-highlight");
+const inputLineNumbersEl = document.getElementById("sheet-input-line-numbers");
 const resultsEl = document.getElementById("sheet-results");
+const resultLineNumbersEl = document.getElementById("sheet-result-line-numbers");
 const appEl = document.getElementById("app-root");
 const helpChipEl = document.getElementById("help-chip");
 const helpPopoverEl = document.getElementById("help-popover");
@@ -21,6 +23,7 @@ const settingFixedDecimalsEl = document.getElementById("setting-fixed-decimals")
 const settingIntegerNoDecimalsEl = document.getElementById("setting-integer-no-decimals");
 const settingPreciseIntermediateEl = document.getElementById("setting-precise-intermediate");
 const settingSyntaxHighlightEl = document.getElementById("setting-syntax-highlighting");
+const settingLineNumbersEl = document.getElementById("setting-line-numbers");
 const mathJsStatusEl = document.getElementById("mathjs-status");
 const resizeChipEl = document.getElementById("resize-chip");
 const resizeFloatEl = document.getElementById("resize-float");
@@ -55,6 +58,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   integerNoDecimals: false,
   preciseIntermediates: true,
   syntaxHighlighting: false,
+  lineNumbers: false,
 });
 
 const unitDefs = {
@@ -369,6 +373,7 @@ function sanitizeSettings(raw) {
     integerNoDecimals: Boolean(source.integerNoDecimals),
     preciseIntermediates: source.preciseIntermediates !== false,
     syntaxHighlighting: Boolean(source.syntaxHighlighting),
+    lineNumbers: Boolean(source.lineNumbers),
   };
 }
 
@@ -1704,10 +1709,33 @@ function renderResults(evaluation) {
   resultsEl.replaceChildren(fragment);
 }
 
+function renderLineNumbers(evaluation) {
+  if (!inputLineNumbersEl || !resultLineNumbersEl) {
+    return;
+  }
+
+  if (!appSettings.lineNumbers) {
+    inputLineNumbersEl.textContent = "";
+    resultLineNumbersEl.textContent = "";
+    return;
+  }
+
+  const inputLineCount = inputEl.value.split("\n").length;
+  const resultLineCount = evaluation && evaluation.displayRows ? evaluation.displayRows.length : 0;
+  const lineCount = Math.max(1, inputLineCount, resultLineCount);
+  const content = Array.from({ length: lineCount }, (_, index) => String(index + 1)).join("\n");
+
+  inputLineNumbersEl.textContent = content;
+  resultLineNumbersEl.textContent = content;
+  inputLineNumbersEl.scrollTop = inputEl.scrollTop;
+  resultLineNumbersEl.scrollTop = resultsEl.scrollTop;
+}
+
 function recalculate() {
   const evaluation = evaluateSheet(inputEl.value);
   lastEvaluation = evaluation;
   renderResults(evaluation);
+  renderLineNumbers(evaluation);
   renderInputHighlight();
 }
 
@@ -1838,13 +1866,18 @@ function applySettingsToUi() {
   if (settingSyntaxHighlightEl) {
     settingSyntaxHighlightEl.checked = appSettings.syntaxHighlighting;
   }
+  if (settingLineNumbersEl) {
+    settingLineNumbersEl.checked = appSettings.lineNumbers;
+  }
   if (mathJsHelpEl) {
     mathJsHelpEl.hidden = !appSettings.useMathJs;
   }
   if (appEl && appEl.classList) {
     appEl.classList.toggle("syntax-highlight", appSettings.syntaxHighlighting);
+    appEl.classList.toggle("show-line-numbers", appSettings.lineNumbers);
   }
   updateMathJsStatus();
+  renderLineNumbers(lastEvaluation);
   renderInputHighlight();
 }
 
@@ -1985,6 +2018,8 @@ function colorForHighlightKind(kind) {
       return [0.48, 0.24, 0.69];
     case "ref":
       return [0.67, 0.36, 0.05];
+    case "line-number":
+      return [0.46, 0.53, 0.64];
     default:
       return null;
   }
@@ -2117,10 +2152,15 @@ function buildPdfPageStreams(rows, includeDivider) {
   let y = marginTop - 20;
   startPage(commands);
 
-  for (const row of rows) {
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+    const row = rows[rowIndex];
+    const lineNumberPrefix = appSettings.lineNumbers ? `${rowIndex + 1} ` : "";
     const leftSegments = buildPdfInputSegments(row.input);
+    if (lineNumberPrefix) {
+      leftSegments.unshift({ text: lineNumberPrefix, kind: "line-number" });
+    }
     const leftLines = wrapSegmentsForPdf(leftSegments, leftChars);
-    const rightLines = wrapTextForPdf(row.result, rightChars);
+    const rightLines = wrapTextForPdf(`${lineNumberPrefix}${row.result}`, rightChars);
     const logicalHeight = Math.max(leftLines.length, rightLines.length);
 
     if (y - logicalHeight * lineHeight < marginBottom) {
@@ -2292,9 +2332,17 @@ function toggleHelpPopover(forceOpen) {
 }
 
 function syncScrollFromInput() {
-  resultsEl.scrollTop = inputEl.scrollTop;
+  const targetTop = inputEl.scrollTop;
+  resultsEl.scrollTop = targetTop;
+
+  if (inputLineNumbersEl) {
+    inputLineNumbersEl.scrollTop = targetTop;
+  }
+  if (resultLineNumbersEl) {
+    resultLineNumbersEl.scrollTop = targetTop;
+  }
   if (highlightEl) {
-    highlightEl.scrollTop = inputEl.scrollTop;
+    highlightEl.scrollTop = targetTop;
     highlightEl.scrollLeft = inputEl.scrollLeft;
   }
 }
@@ -2419,6 +2467,12 @@ if (settingPreciseIntermediateEl && typeof settingPreciseIntermediateEl.addEvent
 if (settingSyntaxHighlightEl && typeof settingSyntaxHighlightEl.addEventListener === "function") {
   settingSyntaxHighlightEl.addEventListener("change", () => {
     patchSettings({ syntaxHighlighting: settingSyntaxHighlightEl.checked });
+  });
+}
+
+if (settingLineNumbersEl && typeof settingLineNumbersEl.addEventListener === "function") {
+  settingLineNumbersEl.addEventListener("change", () => {
+    patchSettings({ lineNumbers: settingLineNumbersEl.checked });
   });
 }
 

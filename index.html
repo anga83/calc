@@ -133,6 +133,14 @@
                 <span class="switch-ui"></span>
               </span>
             </label>
+
+            <label class="setting-item" for="setting-line-numbers">
+              <span class="setting-label">Zeilennummern</span>
+              <span class="switch">
+                <input id="setting-line-numbers" type="checkbox">
+                <span class="switch-ui"></span>
+              </span>
+            </label>
           </div>
         </div>
       </div>
@@ -142,14 +150,20 @@
       <section class="pane input-pane">
         <div class="pane-title">Eingaben</div>
         <div class="input-editor">
-          <pre id="sheet-highlight" aria-hidden="true"></pre>
-          <textarea id="sheet-input" spellcheck="false" wrap="off" aria-label="Rechenzeilen"></textarea>
+          <pre id="sheet-input-line-numbers" class="line-number-gutter" aria-hidden="true"></pre>
+          <div class="editor-content">
+            <pre id="sheet-highlight" aria-hidden="true"></pre>
+            <textarea id="sheet-input" spellcheck="false" wrap="off" aria-label="Rechenzeilen"></textarea>
+          </div>
         </div>
       </section>
 
       <section class="pane output-pane">
         <div class="pane-title">Ergebnisse</div>
-        <div id="sheet-results" aria-live="polite"></div>
+        <div class="result-editor">
+          <pre id="sheet-result-line-numbers" class="line-number-gutter" aria-hidden="true"></pre>
+          <div id="sheet-results" aria-live="polite"></div>
+        </div>
       </section>
     </main>
 
