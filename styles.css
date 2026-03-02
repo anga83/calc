@@ -293,6 +293,11 @@ body {
   margin: 0 0 0.65rem;
 }
 
+#help-popover .mathjs-help h2,
+#help-popover h2:nth-of-type(3) {
+  margin-top: 0.55rem;
+}
+
 .mathjs-chip {
   display: inline-block;
   margin-right: 0.3rem;
