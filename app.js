@@ -17,6 +17,7 @@ const exportPdfPlainBtnEl = document.getElementById("export-pdf-plain-btn");
 const exportMdBtnEl = document.getElementById("export-md-btn");
 const settingUseMathJsEl = document.getElementById("setting-use-mathjs");
 const settingDecimalsEl = document.getElementById("setting-decimals");
+const settingFixedDecimalsEl = document.getElementById("setting-fixed-decimals");
 const settingIntegerNoDecimalsEl = document.getElementById("setting-integer-no-decimals");
 const settingPreciseIntermediateEl = document.getElementById("setting-precise-intermediate");
 const settingSyntaxHighlightEl = document.getElementById("setting-syntax-highlighting");
@@ -50,6 +51,7 @@ const MATHJS_CDN_URL = "https://cdn.jsdelivr.net/npm/mathjs@13.2.2/lib/browser/m
 const DEFAULT_SETTINGS = Object.freeze({
   useMathJs: false,
   decimalPlaces: 4,
+  fixedDecimals: true,
   integerNoDecimals: false,
   preciseIntermediates: true,
   syntaxHighlighting: false,
@@ -363,6 +365,7 @@ function sanitizeSettings(raw) {
   return {
     useMathJs: Boolean(source.useMathJs),
     decimalPlaces: clampDecimalPlaces(source.decimalPlaces),
+    fixedDecimals: source.fixedDecimals !== false,
     integerNoDecimals: Boolean(source.integerNoDecimals),
     preciseIntermediates: source.preciseIntermediates !== false,
     syntaxHighlighting: Boolean(source.syntaxHighlighting),
@@ -1258,10 +1261,12 @@ function quantizeQuantityForStorage(quantity) {
 
 function formatNumber(value, fractionDigits = getDisplayFractionDigits()) {
   const rounded = Object.is(value, -0) ? 0 : value;
-  const resolvedDigits = appSettings.integerNoDecimals && isEffectivelyInteger(rounded) ? 0 : fractionDigits;
+  const showAsInteger = appSettings.integerNoDecimals && isEffectivelyInteger(rounded);
+  const minDigits = showAsInteger ? 0 : appSettings.fixedDecimals ? fractionDigits : 0;
+  const maxDigits = showAsInteger ? 0 : fractionDigits;
   return rounded.toLocaleString("de-DE", {
-    minimumFractionDigits: resolvedDigits,
-    maximumFractionDigits: resolvedDigits,
+    minimumFractionDigits: minDigits,
+    maximumFractionDigits: maxDigits,
     useGrouping: true,
   });
 }
@@ -1820,6 +1825,9 @@ function applySettingsToUi() {
   }
   if (settingDecimalsEl) {
     settingDecimalsEl.value = String(clampDecimalPlaces(appSettings.decimalPlaces));
+  }
+  if (settingFixedDecimalsEl) {
+    settingFixedDecimalsEl.checked = appSettings.fixedDecimals;
   }
   if (settingIntegerNoDecimalsEl) {
     settingIntegerNoDecimalsEl.checked = appSettings.integerNoDecimals;
@@ -2387,6 +2395,12 @@ if (settingUseMathJsEl && typeof settingUseMathJsEl.addEventListener === "functi
 if (settingDecimalsEl && typeof settingDecimalsEl.addEventListener === "function") {
   settingDecimalsEl.addEventListener("change", () => {
     patchSettings({ decimalPlaces: clampDecimalPlaces(settingDecimalsEl.value) });
+  });
+}
+
+if (settingFixedDecimalsEl && typeof settingFixedDecimalsEl.addEventListener === "function") {
+  settingFixedDecimalsEl.addEventListener("change", () => {
+    patchSettings({ fixedDecimals: settingFixedDecimalsEl.checked });
   });
 }
 
