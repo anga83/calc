@@ -276,11 +276,11 @@ const constants = {
   falsch: { value: 0, isBoolean: true },
 };
 
-const wordOperators = new Set(["in", "to", "as", "of", "von", "on", "off", "plus", "minus", "mal", "min", "max"]);
-const operatorWordTestRegex = /^(?:in|to|as|of|von|on|off|plus|minus|mal|min|max)$/iu;
+const wordOperators = new Set(["in", "to", "as", "zu", "als", "of", "von", "on", "off", "plus", "minus", "mal", "min", "max"]);
+const operatorWordTestRegex = /^(?:in|to|as|zu|als|of|von|on|off|plus|minus|mal|min|max)$/iu;
 const numberTokenRegex = /^(?:\d[\d.,]*|,\d+)%?$/u;
 const booleanTokenRegex = /^(?:true|false|wahr|falsch)$/iu;
-const highlightTokenRegex = /(>=|<=|==|!=|[+\-*/^()<>=%;]|@\d+|\b(?:in|to|as|of|von|on|off|plus|minus|mal|min|max)\b|\b(?:true|false|wahr|falsch)\b|(?:\d[\d.,]*|,\d+)%?)/giu;
+const highlightTokenRegex = /(>=|<=|==|!=|[+\-*/^()<>=%;]|@\d+|\b(?:in|to|as|zu|als|of|von|on|off|plus|minus|mal|min|max)\b|\b(?:true|false|wahr|falsch)\b|(?:\d[\d.,]*|,\d+)%?)/giu;
 
 let lastEvaluation = { lineValues: [] };
 let appSettings = loadPersistedSettings();
@@ -396,7 +396,34 @@ function loadPersistedSettings() {
 }
 
 function parseLocaleNumber(raw) {
-  const normalized = raw.replace(/\./g, "").replace(",", ".");
+  let candidate = raw;
+  const hasDot = candidate.includes(".");
+  const hasComma = candidate.includes(",");
+
+  if (hasDot) {
+    const lastDotIndex = candidate.lastIndexOf(".");
+    const tailAfterLastDot = candidate.slice(lastDotIndex + 1);
+    const dotLooksLikeThousandsSeparator = /^\d{3}(,\d+)?$/u.test(tailAfterLastDot);
+
+    if (dotLooksLikeThousandsSeparator) {
+      candidate = candidate.replace(/\./g, "");
+    } else if (!hasComma) {
+      // Punkt als Dezimalzeichen interpretieren: letzter Punkt wird zum Komma.
+      const integerPart = candidate.slice(0, lastDotIndex).replace(/\./g, "");
+      const fractionPart = candidate.slice(lastDotIndex + 1);
+      candidate = `${integerPart},${fractionPart}`;
+    } else {
+      // Falls schon ein Komma existiert, bleibt dieses Dezimaltrennzeichen maßgeblich.
+      candidate = candidate.replace(/\./g, "");
+    }
+  }
+
+  const commaCount = (candidate.match(/,/g) || []).length;
+  if (commaCount > 1) {
+    throw new Error(`Ungültige Zahl: ${raw}`);
+  }
+
+  const normalized = candidate.replace(",", ".");
   const value = Number(normalized);
   if (!Number.isFinite(value)) {
     throw new Error(`Ungültige Zahl: ${raw}`);
@@ -493,7 +520,8 @@ function tokenize(expression) {
       const lower = rawWord.toLowerCase();
 
       if (wordOperators.has(lower) && !["plus", "minus", "mal", "min", "max"].includes(lower)) {
-        tokens.push({ type: "op", value: lower });
+        const canonical = lower === "zu" ? "to" : lower === "als" ? "as" : lower;
+        tokens.push({ type: "op", value: canonical });
       } else if (lower === "mal") {
         tokens.push({ type: "op", value: "*" });
       } else if (lower === "plus") {
@@ -1103,7 +1131,7 @@ function preprocessExpression(expression, variables, lineValues) {
     }
     const lineValue = lineValues[lineNo - 1];
     if (!lineValue) {
-      return match;
+      throw new Error(`Zeile ${lineNo} leer`);
     }
     const placeholder = `__line_${placeholderIndex}`;
     placeholderIndex += 1;
@@ -1188,7 +1216,12 @@ function getDisplayFractionDigits() {
 }
 
 function isEffectivelyInteger(value) {
-  return Number.isFinite(value) && Math.abs(value - Math.round(value)) < 1e-12;
+  if (!Number.isFinite(value)) {
+    return false;
+  }
+  const nearest = Math.round(value);
+  const tolerance = Math.max(1e-9, Math.abs(value) * 1e-12);
+  return Math.abs(value - nearest) <= tolerance;
 }
 
 function roundToDecimals(value, decimals) {
@@ -1488,7 +1521,7 @@ function shouldTryMathJs(preprocessed) {
   if (/%/u.test(preprocessed.expression)) {
     return false;
   }
-  if (/\b(in|to|as|on|off|von)\b/iu.test(preprocessed.expression)) {
+  if (/\b(in|to|as|zu|als|on|off|von)\b/iu.test(preprocessed.expression)) {
     return false;
   }
   if (/[€£$°]/u.test(preprocessed.expression)) {
