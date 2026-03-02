@@ -2537,6 +2537,14 @@ if (appSettings.useMathJs) {
 applyViewMode(loadPersistedViewMode(), false);
 recalculate();
 
+if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {
+      // PWA-Support ist optional und darf die App-Nutzung nicht blockieren.
+    });
+  });
+}
+
 if (typeof window !== "undefined") {
   window.Zeilenrechner = { evaluateSheet };
 }

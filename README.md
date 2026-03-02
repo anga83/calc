@@ -73,6 +73,13 @@ Der Fokus liegt auf schnellem, nachvollziehbarem Rechnen mit Zwischenschritten. 
   - Tabelle `Eingabe | Ergebnis`.
   - Zeilennummern werden hier bewusst nicht ausgegeben.
 
+### PWA
+- Webapp ist als Progressive Web App vorbereitet:
+  - `manifest.webmanifest` (Standalone-Display, Theme-Farben, App-Metadaten).
+  - Service Worker (`sw.js`) mit Asset-Caching und Offline-Fallback für `index.html`.
+  - App-Icons in mehreren Größen inkl. `maskable`-Variante.
+  - Service-Worker-Registrierung beim Laden der App.
+
 ### Persistenz (Local Storage)
 - Letzter Eingabetext.
 - Letzter View-Mode (Standard/Fullsize).
