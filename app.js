@@ -27,6 +27,7 @@ const settingPreciseIntermediateEl = document.getElementById("setting-precise-in
 const settingSyntaxHighlightEl = document.getElementById("setting-syntax-highlighting");
 const settingLineNumbersEl = document.getElementById("setting-line-numbers");
 const settingAutoWrapEl = document.getElementById("setting-auto-wrap");
+const settingLanguageEl = document.getElementById("setting-language");
 const settingDecimalSeparatorEl = document.getElementById("setting-decimal-separator");
 const settingThousandsSeparatorEl = document.getElementById("setting-thousands-separator");
 const separatorStatusEl = document.getElementById("separator-status");
@@ -58,7 +59,7 @@ const VIEW_MODE_FULL = "full";
 const MATHJS_CDN_URL = "https://cdn.jsdelivr.net/npm/mathjs@13.2.2/lib/browser/math.js";
 const DECIMAL_SEPARATOR_OPTIONS = [",", "."];
 const THOUSANDS_SEPARATOR_OPTIONS = [".", ",", "'", ""];
-const currentLanguage = detectLanguage();
+let currentLanguage = detectLanguage();
 
 const DEFAULT_SETTINGS = Object.freeze({
   useMathJs: false,
@@ -69,6 +70,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   syntaxHighlighting: false,
   lineNumbers: false,
   autoWrap: false,
+  language: "auto",
   decimalSeparator: ",",
   thousandsSeparator: ".",
 });
@@ -91,8 +93,12 @@ const I18N = Object.freeze({
     labelSyntaxHighlighting: "Syntax-Highlighting",
     labelLineNumbers: "Zeilennummern",
     labelAutoWrap: "Automatischer Zeilenumbruch",
+    labelLanguage: "Sprache",
     labelDecimalSeparator: "Dezimalzeichen",
     labelThousandsSeparator: "Tausendertrennzeichen",
+    optionLanguageAuto: "Browser-Standard",
+    optionLanguageDe: "Deutsch",
+    optionLanguageEn: "English",
     separatorInvalid: "Dezimalzeichen und Tausendertrennzeichen dürfen nicht identisch sein.",
     separatorValid: "Einstellungen für Zahlenformat sind gültig.",
     hintComments: "<strong>Kommentare:</strong> Zeilen mit <code>#</code> oder <code>//</code>",
@@ -114,7 +120,7 @@ const I18N = Object.freeze({
     helpFunctions1: "<code>min(...)</code>, <code>max(...)</code> (z. B. <code>min(3;5)</code>)",
     helpFunctions2: "<code>Summe(...)</code>/<code>SUM(...)</code> (Excel-ähnlich, z. B. <code>Summe(wert1, wert2)</code>)",
     helpFunctions3: "Bereiche: <code>Summe(@1:@4)</code> summiert Zeilen 1 bis 4 (leere/Kommentarzeilen werden übersprungen)",
-    helpFunctions4: "<code>Durchschnitt(...)</code>/<code>AVG(...)</code>, <code>Anzahl(...)</code>/<code>COUNT(...)</code>",
+    helpFunctions4: "<code>Durchschnitt(...)</code>/<code>Mittelwert(...)</code>/<code>AVG(...)</code>, <code>Anzahl(...)</code>/<code>COUNT(...)</code>",
     helpFunctions5: "Funktionsnamen sind case-insensitiv und funktionieren mit oder ohne führendes <code>=</code>.",
     helpLinkLine: "Weiterführende Syntax: <a id=\"help-link-mathjs\" href=\"https://mathjs.org/docs/expressions/syntax.html\" target=\"_blank\" rel=\"noopener noreferrer\">mathjs.org/docs/expressions/syntax.html</a>",
     helpConv1: "Länge: <code>mm</code>, <code>cm</code>, <code>m</code>, <code>km</code>, <code>in</code>, <code>ft</code>, <code>yd</code>, <code>mi</code>",
@@ -128,7 +134,7 @@ const I18N = Object.freeze({
     downloadHeading: "Export",
     exportPdfDivider: "PDF mit Trennstrich",
     exportPdfPlain: "PDF ohne Trennstrich",
-    exportMarkdown: "Markdown-Tabelle",
+    exportMarkdown: "Markdown (Tabelle)",
     exportJson: "JSON",
     exportYaml: "YAML",
     demoButton: "Demo",
@@ -164,8 +170,12 @@ const I18N = Object.freeze({
     labelSyntaxHighlighting: "Syntax highlighting",
     labelLineNumbers: "Line numbers",
     labelAutoWrap: "Automatic line wrap",
+    labelLanguage: "Language",
     labelDecimalSeparator: "Decimal separator",
     labelThousandsSeparator: "Thousands separator",
+    optionLanguageAuto: "Browser default",
+    optionLanguageDe: "Deutsch",
+    optionLanguageEn: "English",
     separatorInvalid: "Decimal and thousands separators must be different.",
     separatorValid: "Number format settings are valid.",
     hintComments: "<strong>Comments:</strong> Lines starting with <code>#</code> or <code>//</code>",
@@ -187,7 +197,7 @@ const I18N = Object.freeze({
     helpFunctions1: "<code>min(...)</code>, <code>max(...)</code> (e.g. <code>min(3;5)</code>)",
     helpFunctions2: "<code>SUM(...)</code>/<code>Summe(...)</code> (Excel-like, e.g. <code>SUM(value1, value2)</code>)",
     helpFunctions3: "Ranges: <code>SUM(@1:@4)</code> sums lines 1 to 4 (empty/comment lines are skipped)",
-    helpFunctions4: "<code>AVG(...)</code>/<code>Durchschnitt(...)</code>, <code>COUNT(...)</code>/<code>Anzahl(...)</code>",
+    helpFunctions4: "<code>AVG(...)</code>/<code>Durchschnitt(...)</code>/<code>Mittelwert(...)</code>, <code>COUNT(...)</code>/<code>Anzahl(...)</code>",
     helpFunctions5: "Function names are case-insensitive and work with or without a leading <code>=</code>.",
     helpLinkLine: "Extended syntax: <a id=\"help-link-mathjs\" href=\"https://mathjs.org/docs/expressions/syntax.html\" target=\"_blank\" rel=\"noopener noreferrer\">mathjs.org/docs/expressions/syntax.html</a>",
     helpConv1: "Length: <code>mm</code>, <code>cm</code>, <code>m</code>, <code>km</code>, <code>in</code>, <code>ft</code>, <code>yd</code>, <code>mi</code>",
@@ -201,7 +211,7 @@ const I18N = Object.freeze({
     downloadHeading: "Export",
     exportPdfDivider: "PDF with divider",
     exportPdfPlain: "PDF without divider",
-    exportMarkdown: "Markdown table",
+    exportMarkdown: "Markdown (Table)",
     exportJson: "JSON",
     exportYaml: "YAML",
     demoButton: "Demo",
@@ -479,6 +489,14 @@ function detectLanguage() {
   return String(navigator.language).toLowerCase().startsWith("de") ? "de" : "en";
 }
 
+function sanitizeLanguage(value) {
+  return value === "de" || value === "en" || value === "auto" ? value : DEFAULT_SETTINGS.language;
+}
+
+function resolveLanguage(settingLanguage) {
+  return settingLanguage === "auto" ? detectLanguage() : settingLanguage;
+}
+
 function t(key) {
   const langTable = I18N[currentLanguage] || I18N.de;
   if (Object.prototype.hasOwnProperty.call(langTable, key)) {
@@ -563,6 +581,7 @@ function applyLocalization() {
   setTextById("label-syntax-highlighting", t("labelSyntaxHighlighting"));
   setTextById("label-line-numbers", t("labelLineNumbers"));
   setTextById("label-auto-wrap", t("labelAutoWrap"));
+  setTextById("label-language", t("labelLanguage"));
   setTextById("label-decimal-separator", t("labelDecimalSeparator"));
   setTextById("label-thousands-separator", t("labelThousandsSeparator"));
   setHtmlById("hint-comments", t("hintComments"));
@@ -623,6 +642,17 @@ function applyLocalization() {
         option.textContent = currentLanguage === "de" ? "Hochkomma (')" : "Apostrophe (')";
       } else if (option.value === "") {
         option.textContent = currentLanguage === "de" ? "Keines" : "None";
+      }
+    }
+  }
+  if (settingLanguageEl) {
+    for (const option of settingLanguageEl.options) {
+      if (option.value === "auto") {
+        option.textContent = t("optionLanguageAuto");
+      } else if (option.value === "de") {
+        option.textContent = t("optionLanguageDe");
+      } else if (option.value === "en") {
+        option.textContent = t("optionLanguageEn");
       }
     }
   }
@@ -732,6 +762,7 @@ function sanitizeSettings(raw) {
     syntaxHighlighting: Boolean(source.syntaxHighlighting),
     lineNumbers: Boolean(source.lineNumbers),
     autoWrap: Boolean(source.autoWrap),
+    language: sanitizeLanguage(source.language),
     decimalSeparator: validSeparators.decimalSeparator,
     thousandsSeparator: validSeparators.thousandsSeparator,
   };
@@ -2272,27 +2303,12 @@ function updateMathJsStatus() {
     return;
   }
 
-  if (!appSettings.useMathJs) {
-    mathJsStatusEl.textContent = t("mathJsStatusDisabled");
-    return;
-  }
-
-  if (getMathJsInstance()) {
-    mathJsStatusEl.textContent = t("mathJsStatusActive");
-    return;
-  }
-
-  if (mathJsLoadState === "loading") {
-    mathJsStatusEl.textContent = t("mathJsStatusLoading");
-    return;
-  }
-
-  if (mathJsLoadState === "error") {
+  if (appSettings.useMathJs && mathJsLoadState === "error") {
     mathJsStatusEl.textContent = t("mathJsStatusError");
     return;
   }
 
-  mathJsStatusEl.textContent = t("mathJsStatusPending");
+  mathJsStatusEl.textContent = "";
 }
 
 function updateNumberSeparatorStatus() {
@@ -2360,6 +2376,9 @@ function ensureMathJsLoaded() {
 }
 
 function applySettingsToUi() {
+  currentLanguage = resolveLanguage(appSettings.language);
+  applyLocalization();
+
   if (settingUseMathJsEl) {
     settingUseMathJsEl.checked = appSettings.useMathJs;
   }
@@ -2383,6 +2402,9 @@ function applySettingsToUi() {
   }
   if (settingAutoWrapEl) {
     settingAutoWrapEl.checked = appSettings.autoWrap;
+  }
+  if (settingLanguageEl) {
+    settingLanguageEl.value = appSettings.language;
   }
   if (settingDecimalSeparatorEl) {
     settingDecimalSeparatorEl.value = appSettings.decimalSeparator;
@@ -3110,6 +3132,12 @@ if (settingAutoWrapEl && typeof settingAutoWrapEl.addEventListener === "function
   });
 }
 
+if (settingLanguageEl && typeof settingLanguageEl.addEventListener === "function") {
+  settingLanguageEl.addEventListener("change", () => {
+    patchSettings({ language: sanitizeLanguage(settingLanguageEl.value) });
+  });
+}
+
 function applySeparatorSettingsFromUi() {
   if (!settingDecimalSeparatorEl || !settingThousandsSeparatorEl) {
     return;
@@ -3189,7 +3217,6 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
 }
 
 inputEl.value = loadPersistedInput();
-applyLocalization();
 applySettingsToUi();
 if (appSettings.useMathJs) {
   ensureMathJsLoaded();

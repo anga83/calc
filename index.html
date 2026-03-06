@@ -52,7 +52,7 @@
               <li id="help-functions-1"><code>min(...)</code>, <code>max(...)</code> (z. B. <code>min(3;5)</code>)</li>
               <li id="help-functions-2"><code>Summe(...)</code>/<code>SUM(...)</code> (Excel-ähnlich, z. B. <code>Summe(wert1, wert2)</code>)</li>
               <li id="help-functions-3">Bereiche: <code>Summe(@1:@4)</code> summiert Zeilen 1 bis 4 (leere/Kommentarzeilen werden übersprungen)</li>
-              <li id="help-functions-4"><code>Durchschnitt(...)</code>/<code>AVG(...)</code>, <code>Anzahl(...)</code>/<code>COUNT(...)</code></li>
+              <li id="help-functions-4"><code>Durchschnitt(...)</code>/<code>Mittelwert(...)</code>/<code>AVG(...)</code>, <code>Anzahl(...)</code>/<code>COUNT(...)</code></li>
               <li id="help-functions-5">Funktionsnamen sind case-insensitiv und funktionieren mit oder ohne führendes <code>=</code>.</li>
             </ul>
             <p id="help-link-line" class="help-link">Weiterführende Syntax: <a id="help-link-mathjs" href="https://mathjs.org/docs/expressions/syntax.html" target="_blank" rel="noopener noreferrer">mathjs.org/docs/expressions/syntax.html</a></p>
@@ -60,11 +60,11 @@
             <div id="mathjs-help" class="mathjs-help" hidden>
               <h2 id="help-mathjs-heading">Zusätzlich Mit math.js</h2>
               <ul>
-                <li><span class="mathjs-chip">math.js</span> <code>sqrt(x)</code></li>
-                <li><span class="mathjs-chip">math.js</span> <code>cbrt(x)</code></li>
-                <li><span class="mathjs-chip">math.js</span> <code>abs(x)</code></li>
-                <li><span class="mathjs-chip">math.js</span> <code>sin(x)</code>, <code>cos(x)</code>, <code>tan(x)</code></li>
-                <li><span class="mathjs-chip">math.js</span> <code>log(x)</code>, <code>ln(x)</code>, <code>exp(x)</code></li>
+                <li><code>sqrt(x)</code></li>
+                <li><code>cbrt(x)</code></li>
+                <li><code>abs(x)</code></li>
+                <li><code>sin(x)</code>, <code>cos(x)</code>, <code>tan(x)</code></li>
+                <li><code>log(x)</code>, <code>ln(x)</code>, <code>exp(x)</code></li>
               </ul>
             </div>
 
@@ -86,7 +86,7 @@
             <h2 id="download-heading">Export</h2>
             <button id="export-pdf-divider-btn" class="download-option" type="button">PDF mit Trennstrich</button>
             <button id="export-pdf-plain-btn" class="download-option" type="button">PDF ohne Trennstrich</button>
-            <button id="export-md-btn" class="download-option" type="button">Markdown-Tabelle</button>
+            <button id="export-md-btn" class="download-option" type="button">Markdown (Tabelle)</button>
             <button id="export-json-btn" class="download-option" type="button">JSON</button>
             <button id="export-yaml-btn" class="download-option" type="button">YAML</button>
           </div>
@@ -169,6 +169,15 @@
                 <input id="setting-auto-wrap" type="checkbox">
                 <span class="switch-ui"></span>
               </span>
+            </label>
+
+            <label class="setting-item" for="setting-language">
+              <span id="label-language" class="setting-label">Sprache</span>
+              <select id="setting-language" class="setting-select">
+                <option value="auto">Browser-Standard</option>
+                <option value="de">Deutsch</option>
+                <option value="en">English</option>
+              </select>
             </label>
 
             <h3 id="settings-group-number-format" class="settings-group-title">Zahlenformat</h3>
