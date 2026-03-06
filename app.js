@@ -17,6 +17,8 @@ const loadDemoBtnEl = document.getElementById("load-demo-btn");
 const exportPdfDividerBtnEl = document.getElementById("export-pdf-divider-btn");
 const exportPdfPlainBtnEl = document.getElementById("export-pdf-plain-btn");
 const exportMdBtnEl = document.getElementById("export-md-btn");
+const exportJsonBtnEl = document.getElementById("export-json-btn");
+const exportYamlBtnEl = document.getElementById("export-yaml-btn");
 const settingUseMathJsEl = document.getElementById("setting-use-mathjs");
 const settingDecimalsEl = document.getElementById("setting-decimals");
 const settingFixedDecimalsEl = document.getElementById("setting-fixed-decimals");
@@ -24,6 +26,10 @@ const settingIntegerNoDecimalsEl = document.getElementById("setting-integer-no-d
 const settingPreciseIntermediateEl = document.getElementById("setting-precise-intermediate");
 const settingSyntaxHighlightEl = document.getElementById("setting-syntax-highlighting");
 const settingLineNumbersEl = document.getElementById("setting-line-numbers");
+const settingAutoWrapEl = document.getElementById("setting-auto-wrap");
+const settingDecimalSeparatorEl = document.getElementById("setting-decimal-separator");
+const settingThousandsSeparatorEl = document.getElementById("setting-thousands-separator");
+const separatorStatusEl = document.getElementById("separator-status");
 const mathJsStatusEl = document.getElementById("mathjs-status");
 const resizeChipEl = document.getElementById("resize-chip");
 const resizeFloatEl = document.getElementById("resize-float");
@@ -50,15 +56,170 @@ const SETTINGS_STORAGE_KEY = "zeilenrechner:settings";
 const VIEW_MODE_STANDARD = "standard";
 const VIEW_MODE_FULL = "full";
 const MATHJS_CDN_URL = "https://cdn.jsdelivr.net/npm/mathjs@13.2.2/lib/browser/math.js";
+const DECIMAL_SEPARATOR_OPTIONS = [",", "."];
+const THOUSANDS_SEPARATOR_OPTIONS = [".", ",", "'", ""];
+const currentLanguage = detectLanguage();
 
 const DEFAULT_SETTINGS = Object.freeze({
   useMathJs: false,
   decimalPlaces: 4,
-  fixedDecimals: true,
+  fixedDecimals: false,
   integerNoDecimals: false,
   preciseIntermediates: true,
   syntaxHighlighting: false,
   lineNumbers: false,
+  autoWrap: false,
+  decimalSeparator: ",",
+  thousandsSeparator: ".",
+});
+
+const I18N = Object.freeze({
+  de: {
+    appTitle: "Zeilenrechner",
+    appSubtitle: "Kommentare, Variablen, Prozentrechnung und Einheitenumrechnung wie in Soulver.",
+    paneInput: "Eingaben",
+    paneOutput: "Ergebnisse",
+    settingsHeading: "Einstellungen",
+    settingsGroupCalc: "Berechnung",
+    settingsGroupDisplay: "Anzeige",
+    settingsGroupNumberFormat: "Zahlenformat",
+    labelUseMathJs: "math.js verwenden",
+    labelPreciseIntermediate: "Mit genauen Zwischenergebnissen rechnen",
+    labelDecimals: "Nachkommastellen",
+    labelFixedDecimals: "Fixe Nachkommastellen",
+    labelIntegerNoDecimals: "Ganzzahlen ohne Nachkommastellen",
+    labelSyntaxHighlighting: "Syntax-Highlighting",
+    labelLineNumbers: "Zeilennummern",
+    labelAutoWrap: "Automatischer Zeilenumbruch",
+    labelDecimalSeparator: "Dezimalzeichen",
+    labelThousandsSeparator: "Tausendertrennzeichen",
+    separatorInvalid: "Dezimalzeichen und Tausendertrennzeichen dürfen nicht identisch sein.",
+    separatorValid: "Einstellungen für Zahlenformat sind gültig.",
+    hintComments: "<strong>Kommentare:</strong> Zeilen mit <code>#</code> oder <code>//</code>",
+    hintVariables: "<strong>Variablen:</strong> <code>name = ...</code>, <code>name += ...</code>, <code>name -= ...</code>",
+    hintConversions: "<strong>Umrechnung:</strong> <code>10 km in m</code>, <code>32 °F as °C</code>",
+    helpSyntaxHeading: "Syntax",
+    helpFunctionsHeading: "Funktionen",
+    helpConversionsHeading: "Unterstützte Umrechnungen",
+    helpMathJsHeading: "Zusätzlich Mit math.js",
+    helpSyntax1: "Arithmetik: <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>^</code>",
+    helpSyntax2: "Text-Operatoren: <code>plus</code>, <code>minus</code>, <code>mal</code>, <code>of</code>, <code>von</code>, <code>on</code>, <code>off</code>",
+    helpSyntax3: "Umrechnung: <code>in</code>, <code>to</code>/<code>zu</code>, <code>as</code>/<code>als</code>, Kurzform: <code>km m</code>",
+    helpSyntax4: "Zuweisung: <code>=</code>, <code>+=</code>, <code>-=</code>",
+    helpSyntax5: "Referenzen: <code>@3</code> (Zeile 3), <code>ans</code>/<code>last</code>",
+    helpSyntax6: "Vergleiche: <code>&gt;</code>, <code>&gt;=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>==</code>, <code>!=</code>",
+    helpSyntax7: "Kommentare: Zeilen mit <code>#</code> oder <code>//</code>",
+    helpSyntax8: "Ein trailing <code>=</code> wird ignoriert: <code>1 + 2 =</code>",
+    helpSyntax9: "Variablennamen dürfen Leerzeichen und Umlaute enthalten; sie sind nicht case-sensitiv.",
+    helpFunctions1: "<code>min(...)</code>, <code>max(...)</code> (z. B. <code>min(3;5)</code>)",
+    helpFunctions2: "<code>Summe(...)</code>/<code>SUM(...)</code> (Excel-ähnlich, z. B. <code>Summe(wert1, wert2)</code>)",
+    helpFunctions3: "Bereiche: <code>Summe(@1:@4)</code> summiert Zeilen 1 bis 4 (leere/Kommentarzeilen werden übersprungen)",
+    helpFunctions4: "<code>Durchschnitt(...)</code>/<code>AVG(...)</code>, <code>Anzahl(...)</code>/<code>COUNT(...)</code>",
+    helpFunctions5: "Funktionsnamen sind case-insensitiv und funktionieren mit oder ohne führendes <code>=</code>.",
+    helpLinkLine: "Weiterführende Syntax: <a id=\"help-link-mathjs\" href=\"https://mathjs.org/docs/expressions/syntax.html\" target=\"_blank\" rel=\"noopener noreferrer\">mathjs.org/docs/expressions/syntax.html</a>",
+    helpConv1: "Länge: <code>mm</code>, <code>cm</code>, <code>m</code>, <code>km</code>, <code>in</code>, <code>ft</code>, <code>yd</code>, <code>mi</code>",
+    helpConv2: "Masse: <code>mg</code>, <code>g</code>, <code>kg</code>, <code>t</code>, <code>oz</code>, <code>lb</code>",
+    helpConv3: "Zeit: <code>ms</code>, <code>s</code>, <code>min</code>, <code>h</code>, <code>d</code>, <code>wk</code>",
+    helpConv4: "Volumen: <code>ml</code>, <code>l</code>",
+    helpConv5: "Fläche: <code>cm²</code>, <code>m²</code>, <code>km²</code>, <code>ha</code>",
+    helpConv6: "Geschwindigkeit: <code>m/s</code>, <code>km/h</code>, <code>mph</code>",
+    helpConv7: "Temperatur: <code>°C</code>, <code>°F</code>, <code>K</code>",
+    helpConv8: "Währung: <code>€</code>/<code>EUR</code>, <code>USD</code>, <code>CHF</code>, <code>GBP</code>",
+    downloadHeading: "Export",
+    exportPdfDivider: "PDF mit Trennstrich",
+    exportPdfPlain: "PDF ohne Trennstrich",
+    exportMarkdown: "Markdown-Tabelle",
+    exportJson: "JSON",
+    exportYaml: "YAML",
+    demoButton: "Demo",
+    mathJsStatusDisabled: "math.js ist deaktiviert.",
+    mathJsStatusActive: "math.js ist aktiv.",
+    mathJsStatusLoading: "math.js wird geladen ...",
+    mathJsStatusError: "math.js konnte nicht geladen werden. Fallback ist aktiv.",
+    mathJsStatusPending: "math.js ist eingeschaltet, aber noch nicht geladen.",
+    errorPrefix: "Fehler",
+    resizeToFull: "Vollansicht umschalten",
+    resizeToStandard: "Standardansicht umschalten",
+    resizeFloatTitleStandard: "Standardansicht",
+    resizeFloatTitleFull: "Vollansicht",
+    buttonHelpTitle: "Hilfe",
+    buttonDownloadTitle: "Exportieren",
+    buttonSettingsTitle: "Einstellungen",
+    inputAria: "Rechenzeilen"
+  },
+  en: {
+    appTitle: "Line Calculator",
+    appSubtitle: "Comments, variables, percentages, and unit conversion like Soulver.",
+    paneInput: "Input",
+    paneOutput: "Results",
+    settingsHeading: "Settings",
+    settingsGroupCalc: "Calculation",
+    settingsGroupDisplay: "Display",
+    settingsGroupNumberFormat: "Number Format",
+    labelUseMathJs: "Use math.js",
+    labelPreciseIntermediate: "Use precise intermediate values",
+    labelDecimals: "Decimal places",
+    labelFixedDecimals: "Fixed decimal places",
+    labelIntegerNoDecimals: "Hide decimals for integers",
+    labelSyntaxHighlighting: "Syntax highlighting",
+    labelLineNumbers: "Line numbers",
+    labelAutoWrap: "Automatic line wrap",
+    labelDecimalSeparator: "Decimal separator",
+    labelThousandsSeparator: "Thousands separator",
+    separatorInvalid: "Decimal and thousands separators must be different.",
+    separatorValid: "Number format settings are valid.",
+    hintComments: "<strong>Comments:</strong> Lines starting with <code>#</code> or <code>//</code>",
+    hintVariables: "<strong>Variables:</strong> <code>name = ...</code>, <code>name += ...</code>, <code>name -= ...</code>",
+    hintConversions: "<strong>Conversion:</strong> <code>10 km in m</code>, <code>32 °F as °C</code>",
+    helpSyntaxHeading: "Syntax",
+    helpFunctionsHeading: "Functions",
+    helpConversionsHeading: "Supported conversions",
+    helpMathJsHeading: "Additional With math.js",
+    helpSyntax1: "Arithmetic: <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>^</code>",
+    helpSyntax2: "Word operators: <code>plus</code>, <code>minus</code>, <code>mal</code>, <code>of</code>, <code>von</code>, <code>on</code>, <code>off</code>",
+    helpSyntax3: "Conversion: <code>in</code>, <code>to</code>/<code>zu</code>, <code>as</code>/<code>als</code>, shorthand: <code>km m</code>",
+    helpSyntax4: "Assignment: <code>=</code>, <code>+=</code>, <code>-=</code>",
+    helpSyntax5: "References: <code>@3</code> (line 3), <code>ans</code>/<code>last</code>",
+    helpSyntax6: "Comparisons: <code>&gt;</code>, <code>&gt;=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>==</code>, <code>!=</code>",
+    helpSyntax7: "Comments: lines starting with <code>#</code> or <code>//</code>",
+    helpSyntax8: "A trailing <code>=</code> is ignored: <code>1 + 2 =</code>",
+    helpSyntax9: "Variable names may contain spaces and umlauts; matching is case-insensitive.",
+    helpFunctions1: "<code>min(...)</code>, <code>max(...)</code> (e.g. <code>min(3;5)</code>)",
+    helpFunctions2: "<code>SUM(...)</code>/<code>Summe(...)</code> (Excel-like, e.g. <code>SUM(value1, value2)</code>)",
+    helpFunctions3: "Ranges: <code>SUM(@1:@4)</code> sums lines 1 to 4 (empty/comment lines are skipped)",
+    helpFunctions4: "<code>AVG(...)</code>/<code>Durchschnitt(...)</code>, <code>COUNT(...)</code>/<code>Anzahl(...)</code>",
+    helpFunctions5: "Function names are case-insensitive and work with or without a leading <code>=</code>.",
+    helpLinkLine: "Extended syntax: <a id=\"help-link-mathjs\" href=\"https://mathjs.org/docs/expressions/syntax.html\" target=\"_blank\" rel=\"noopener noreferrer\">mathjs.org/docs/expressions/syntax.html</a>",
+    helpConv1: "Length: <code>mm</code>, <code>cm</code>, <code>m</code>, <code>km</code>, <code>in</code>, <code>ft</code>, <code>yd</code>, <code>mi</code>",
+    helpConv2: "Mass: <code>mg</code>, <code>g</code>, <code>kg</code>, <code>t</code>, <code>oz</code>, <code>lb</code>",
+    helpConv3: "Time: <code>ms</code>, <code>s</code>, <code>min</code>, <code>h</code>, <code>d</code>, <code>wk</code>",
+    helpConv4: "Volume: <code>ml</code>, <code>l</code>",
+    helpConv5: "Area: <code>cm²</code>, <code>m²</code>, <code>km²</code>, <code>ha</code>",
+    helpConv6: "Speed: <code>m/s</code>, <code>km/h</code>, <code>mph</code>",
+    helpConv7: "Temperature: <code>°C</code>, <code>°F</code>, <code>K</code>",
+    helpConv8: "Currency: <code>€</code>/<code>EUR</code>, <code>USD</code>, <code>CHF</code>, <code>GBP</code>",
+    downloadHeading: "Export",
+    exportPdfDivider: "PDF with divider",
+    exportPdfPlain: "PDF without divider",
+    exportMarkdown: "Markdown table",
+    exportJson: "JSON",
+    exportYaml: "YAML",
+    demoButton: "Demo",
+    mathJsStatusDisabled: "math.js is disabled.",
+    mathJsStatusActive: "math.js is active.",
+    mathJsStatusLoading: "Loading math.js ...",
+    mathJsStatusError: "Could not load math.js. Fallback parser is active.",
+    mathJsStatusPending: "math.js is enabled but not loaded yet.",
+    errorPrefix: "Error",
+    resizeToFull: "Toggle full view",
+    resizeToStandard: "Toggle standard view",
+    resizeFloatTitleStandard: "Standard view",
+    resizeFloatTitleFull: "Full view",
+    buttonHelpTitle: "Help",
+    buttonDownloadTitle: "Export",
+    buttonSettingsTitle: "Settings",
+    inputAria: "Calculation lines"
+  }
 });
 
 const unitDefs = {
@@ -284,9 +445,9 @@ const constants = {
 
 const wordOperators = new Set(["in", "to", "as", "zu", "als", "of", "von", "on", "off", "plus", "minus", "mal", "min", "max"]);
 const operatorWordTestRegex = /^(?:in|to|as|zu|als|of|von|on|off|plus|minus|mal|min|max)$/iu;
-const numberTokenRegex = /^(?:\d[\d.,]*|,\d+)%?$/u;
+const numberTokenRegex = /^(?:\d[\d.,']*|[.,]\d+)%?$/u;
 const booleanTokenRegex = /^(?:true|false|wahr|falsch)$/iu;
-const highlightTokenRegex = /(>=|<=|==|!=|[+\-*/^()<>=%;]|@\d+|\b(?:in|to|as|zu|als|of|von|on|off|plus|minus|mal|min|max)\b|\b(?:true|false|wahr|falsch)\b|(?:\d[\d.,]*|,\d+)%?)/giu;
+const highlightTokenRegex = /(>=|<=|==|!=|[+\-*/^()<>=%;,]|@\d+|\b(?:in|to|as|zu|als|of|von|on|off|plus|minus|mal|min|max)\b|\b(?:true|false|wahr|falsch)\b|(?:\d[\d.,']*|[.,]\d+)%?)/giu;
 
 let lastEvaluation = { lineValues: [] };
 let appSettings = loadPersistedSettings();
@@ -309,6 +470,178 @@ function affineUnit(dimension, symbol, toBase, fromBase) {
     toBase,
     fromBase,
   };
+}
+
+function detectLanguage() {
+  if (typeof navigator === "undefined" || !navigator.language) {
+    return "de";
+  }
+  return String(navigator.language).toLowerCase().startsWith("de") ? "de" : "en";
+}
+
+function t(key) {
+  const langTable = I18N[currentLanguage] || I18N.de;
+  if (Object.prototype.hasOwnProperty.call(langTable, key)) {
+    return langTable[key];
+  }
+  return I18N.de[key] || key;
+}
+
+function localizeErrorMessage(message) {
+  if (currentLanguage === "de") {
+    return message;
+  }
+
+  const text = String(message || "");
+  const rules = [
+    [/^Ungültige Zahl: (.+)$/u, "Invalid number: $1"],
+    [/^Unbekanntes Zeichen: (.+)$/u, "Unknown character: $1"],
+    [/^Unbekannter Name: (.+)$/u, "Unknown name: $1"],
+    [/^Zeile (\d+) leer$/u, "Line $1 is empty"],
+    [/^Es gibt noch kein vorheriges Ergebnis$/u, "There is no previous result yet"],
+    [/^Division durch 0$/u, "Division by zero"],
+    [/^Schließende Klammer fehlt$/u, "Missing closing parenthesis"],
+    [/^Ausdruck konnte nicht vollständig geparst werden$/u, "Expression could not be fully parsed"],
+    [/^Unerwartetes Ende$/u, "Unexpected end of expression"],
+    [/^Unerwartetes Token: (.+)$/u, "Unexpected token: $1"],
+    [/^Einheiten nicht kompatibel \((.+)\)$/u, "Units are not compatible ($1)"],
+    [/^Wert hat keine Einheit$/u, "Value has no unit"],
+    [/^Umrechnung nur für Werte mit Einheit möglich$/u, "Conversion is only possible for values with units"],
+    [/^Unbekannte Funktion: (.+)$/u, "Unknown function: $1"],
+    [/^Ungültige Zeilenreferenz: (.+)$/u, "Invalid line reference: $1"]
+  ];
+
+  for (const [pattern, replacement] of rules) {
+    if (pattern.test(text)) {
+      return text.replace(pattern, replacement);
+    }
+  }
+  return text;
+}
+
+function setTextById(id, text) {
+  const el = document.getElementById(id);
+  if (!el) {
+    return;
+  }
+  el.textContent = text;
+}
+
+function setHtmlById(id, html) {
+  const el = document.getElementById(id);
+  if (!el) {
+    return;
+  }
+  el.innerHTML = html;
+}
+
+function applyLocalization() {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  document.documentElement.lang = currentLanguage === "de" ? "de" : "en";
+  document.title = t("appTitle");
+  const appleTitleMeta = document.querySelector("meta[name='apple-mobile-web-app-title']");
+  if (appleTitleMeta) {
+    appleTitleMeta.setAttribute("content", t("appTitle"));
+  }
+
+  setTextById("ui-title", t("appTitle"));
+  setTextById("ui-subtitle", t("appSubtitle"));
+  setTextById("pane-title-input", t("paneInput"));
+  setTextById("pane-title-output", t("paneOutput"));
+  setTextById("settings-heading", t("settingsHeading"));
+  setTextById("settings-group-calc", t("settingsGroupCalc"));
+  setTextById("settings-group-display", t("settingsGroupDisplay"));
+  setTextById("settings-group-number-format", t("settingsGroupNumberFormat"));
+  setTextById("label-use-mathjs", t("labelUseMathJs"));
+  setTextById("label-precise-intermediate", t("labelPreciseIntermediate"));
+  setTextById("label-decimals", t("labelDecimals"));
+  setTextById("label-fixed-decimals", t("labelFixedDecimals"));
+  setTextById("label-integer-no-decimals", t("labelIntegerNoDecimals"));
+  setTextById("label-syntax-highlighting", t("labelSyntaxHighlighting"));
+  setTextById("label-line-numbers", t("labelLineNumbers"));
+  setTextById("label-auto-wrap", t("labelAutoWrap"));
+  setTextById("label-decimal-separator", t("labelDecimalSeparator"));
+  setTextById("label-thousands-separator", t("labelThousandsSeparator"));
+  setHtmlById("hint-comments", t("hintComments"));
+  setHtmlById("hint-variables", t("hintVariables"));
+  setHtmlById("hint-conversions", t("hintConversions"));
+
+  setTextById("help-syntax-heading", t("helpSyntaxHeading"));
+  setTextById("help-functions-heading", t("helpFunctionsHeading"));
+  setTextById("help-conversions-heading", t("helpConversionsHeading"));
+  setTextById("help-mathjs-heading", t("helpMathJsHeading"));
+  setHtmlById("help-syntax-1", t("helpSyntax1"));
+  setHtmlById("help-syntax-2", t("helpSyntax2"));
+  setHtmlById("help-syntax-3", t("helpSyntax3"));
+  setHtmlById("help-syntax-4", t("helpSyntax4"));
+  setHtmlById("help-syntax-5", t("helpSyntax5"));
+  setHtmlById("help-syntax-6", t("helpSyntax6"));
+  setHtmlById("help-syntax-7", t("helpSyntax7"));
+  setHtmlById("help-syntax-8", t("helpSyntax8"));
+  setHtmlById("help-syntax-9", t("helpSyntax9"));
+  setHtmlById("help-functions-1", t("helpFunctions1"));
+  setHtmlById("help-functions-2", t("helpFunctions2"));
+  setHtmlById("help-functions-3", t("helpFunctions3"));
+  setHtmlById("help-functions-4", t("helpFunctions4"));
+  setHtmlById("help-functions-5", t("helpFunctions5"));
+  setHtmlById("help-link-line", t("helpLinkLine"));
+  setHtmlById("help-conv-1", t("helpConv1"));
+  setHtmlById("help-conv-2", t("helpConv2"));
+  setHtmlById("help-conv-3", t("helpConv3"));
+  setHtmlById("help-conv-4", t("helpConv4"));
+  setHtmlById("help-conv-5", t("helpConv5"));
+  setHtmlById("help-conv-6", t("helpConv6"));
+  setHtmlById("help-conv-7", t("helpConv7"));
+  setHtmlById("help-conv-8", t("helpConv8"));
+  setTextById("download-heading", t("downloadHeading"));
+  setTextById("export-pdf-divider-btn", t("exportPdfDivider"));
+  setTextById("export-pdf-plain-btn", t("exportPdfPlain"));
+  setTextById("export-md-btn", t("exportMarkdown"));
+  setTextById("export-json-btn", t("exportJson"));
+  setTextById("export-yaml-btn", t("exportYaml"));
+  setTextById("load-demo-btn", t("demoButton"));
+
+  if (settingDecimalSeparatorEl) {
+    for (const option of settingDecimalSeparatorEl.options) {
+      if (option.value === ",") {
+        option.textContent = currentLanguage === "de" ? "Komma (,)" : "Comma (,)";
+      } else if (option.value === ".") {
+        option.textContent = currentLanguage === "de" ? "Punkt (.)" : "Dot (.)";
+      }
+    }
+  }
+  if (settingThousandsSeparatorEl) {
+    for (const option of settingThousandsSeparatorEl.options) {
+      if (option.value === ".") {
+        option.textContent = currentLanguage === "de" ? "Punkt (.)" : "Dot (.)";
+      } else if (option.value === ",") {
+        option.textContent = currentLanguage === "de" ? "Komma (,)" : "Comma (,)";
+      } else if (option.value === "'") {
+        option.textContent = currentLanguage === "de" ? "Hochkomma (')" : "Apostrophe (')";
+      } else if (option.value === "") {
+        option.textContent = currentLanguage === "de" ? "Keines" : "None";
+      }
+    }
+  }
+
+  if (helpChipEl) {
+    helpChipEl.title = t("buttonHelpTitle");
+    helpChipEl.setAttribute("aria-label", t("buttonHelpTitle"));
+  }
+  if (downloadChipEl) {
+    downloadChipEl.title = t("buttonDownloadTitle");
+    downloadChipEl.setAttribute("aria-label", t("buttonDownloadTitle"));
+  }
+  if (settingsChipEl) {
+    settingsChipEl.title = t("buttonSettingsTitle");
+    settingsChipEl.setAttribute("aria-label", t("buttonSettingsTitle"));
+  }
+  if (inputEl) {
+    inputEl.setAttribute("aria-label", t("inputAria"));
+  }
 }
 
 function normalizeName(name) {
@@ -339,7 +672,9 @@ function findInlineDoubleSlashIndex(line) {
       inDouble = !inDouble;
       continue;
     }
-    if (char === "'" && !inDouble) {
+    const prev = i > 0 ? line[i - 1] : "";
+    const isApostropheBetweenDigits = char === "'" && /\d/u.test(prev) && /\d/u.test(next);
+    if (char === "'" && !inDouble && !isApostropheBetweenDigits) {
       inSingle = !inSingle;
       continue;
     }
@@ -364,16 +699,41 @@ function clampDecimalPlaces(value) {
   return Math.max(0, Math.min(10, Math.round(numeric)));
 }
 
+function sanitizeDecimalSeparator(value) {
+  return DECIMAL_SEPARATOR_OPTIONS.includes(value) ? value : DEFAULT_SETTINGS.decimalSeparator;
+}
+
+function sanitizeThousandsSeparator(value) {
+  return THOUSANDS_SEPARATOR_OPTIONS.includes(value) ? value : DEFAULT_SETTINGS.thousandsSeparator;
+}
+
+function ensureValidSeparators(decimalSeparator, thousandsSeparator) {
+  if (!thousandsSeparator || decimalSeparator !== thousandsSeparator) {
+    return { decimalSeparator, thousandsSeparator, isValid: true };
+  }
+  return {
+    decimalSeparator,
+    thousandsSeparator: decimalSeparator === "." ? "," : ".",
+    isValid: false
+  };
+}
+
 function sanitizeSettings(raw) {
   const source = raw && typeof raw === "object" ? raw : {};
+  const decimalSeparator = sanitizeDecimalSeparator(source.decimalSeparator);
+  const thousandsSeparator = sanitizeThousandsSeparator(source.thousandsSeparator);
+  const validSeparators = ensureValidSeparators(decimalSeparator, thousandsSeparator);
   return {
     useMathJs: Boolean(source.useMathJs),
     decimalPlaces: clampDecimalPlaces(source.decimalPlaces),
-    fixedDecimals: source.fixedDecimals !== false,
+    fixedDecimals: Boolean(source.fixedDecimals),
     integerNoDecimals: Boolean(source.integerNoDecimals),
     preciseIntermediates: source.preciseIntermediates !== false,
     syntaxHighlighting: Boolean(source.syntaxHighlighting),
     lineNumbers: Boolean(source.lineNumbers),
+    autoWrap: Boolean(source.autoWrap),
+    decimalSeparator: validSeparators.decimalSeparator,
+    thousandsSeparator: validSeparators.thousandsSeparator,
   };
 }
 
@@ -404,34 +764,40 @@ function loadPersistedSettings() {
 }
 
 function parseLocaleNumber(raw) {
-  let candidate = raw;
-  const hasDot = candidate.includes(".");
-  const hasComma = candidate.includes(",");
+  const decimalSeparator = appSettings.decimalSeparator;
+  const thousandsSeparator = appSettings.thousandsSeparator;
+  const validSeparators = ensureValidSeparators(decimalSeparator, thousandsSeparator);
+  let candidate = String(raw).trim();
 
-  if (hasDot) {
-    const lastDotIndex = candidate.lastIndexOf(".");
-    const tailAfterLastDot = candidate.slice(lastDotIndex + 1);
-    const dotLooksLikeThousandsSeparator = /^\d{3}(,\d+)?$/u.test(tailAfterLastDot);
+  if (validSeparators.thousandsSeparator) {
+    const groupSep = validSeparators.thousandsSeparator;
+    if (candidate.includes(groupSep)) {
+      const lastGroupIndex = candidate.lastIndexOf(groupSep);
+      const tailAfterLast = candidate.slice(lastGroupIndex + groupSep.length);
+      const decimalEscaped = escapeRegExp(validSeparators.decimalSeparator);
+      const groupedPattern = new RegExp(`^\\d{3}(?:${decimalEscaped}\\d+)?$`, "u");
+      const groupLooksLikeThousands = groupedPattern.test(tailAfterLast);
 
-    if (dotLooksLikeThousandsSeparator) {
-      candidate = candidate.replace(/\./g, "");
-    } else if (!hasComma) {
-      // Punkt als Dezimalzeichen interpretieren: letzter Punkt wird zum Komma.
-      const integerPart = candidate.slice(0, lastDotIndex).replace(/\./g, "");
-      const fractionPart = candidate.slice(lastDotIndex + 1);
-      candidate = `${integerPart},${fractionPart}`;
-    } else {
-      // Falls schon ein Komma existiert, bleibt dieses Dezimaltrennzeichen maßgeblich.
-      candidate = candidate.replace(/\./g, "");
+      if (!candidate.includes(validSeparators.decimalSeparator) && !groupLooksLikeThousands) {
+        const integerPart = candidate.slice(0, lastGroupIndex).split(groupSep).join("");
+        const fractionPart = candidate.slice(lastGroupIndex + groupSep.length);
+        candidate = `${integerPart}${validSeparators.decimalSeparator}${fractionPart}`;
+      } else {
+        candidate = candidate.split(groupSep).join("");
+      }
     }
   }
 
-  const commaCount = (candidate.match(/,/g) || []).length;
-  if (commaCount > 1) {
+  const decimalCount = validSeparators.decimalSeparator
+    ? (candidate.match(new RegExp(escapeRegExp(validSeparators.decimalSeparator), "g")) || []).length
+    : 0;
+  if (decimalCount > 1) {
     throw new Error(`Ungültige Zahl: ${raw}`);
   }
 
-  const normalized = candidate.replace(",", ".");
+  const normalized = validSeparators.decimalSeparator === "."
+    ? candidate
+    : candidate.replace(validSeparators.decimalSeparator, ".");
   const value = Number(normalized);
   if (!Number.isFinite(value)) {
     throw new Error(`Ungültige Zahl: ${raw}`);
@@ -470,28 +836,30 @@ function tokenize(expression) {
       continue;
     }
 
-    if (char === ";") {
+    const nextChar = expression[i + 1] || "";
+    const prevToken = tokens.length ? tokens[tokens.length - 1] : null;
+    const commaFollowedByDigit = /\d/u.test(nextChar);
+    const commaActsAsSeparator = char === "," && (
+      !commaFollowedByDigit ||
+      (commaFollowedByDigit && prevToken && (prevToken.type === "number" || prevToken.type === "ident" || prevToken.type === "rparen"))
+    );
+    if (char === ";" || commaActsAsSeparator) {
       tokens.push({ type: "sep", value: ";" });
       i += 1;
       continue;
     }
 
-    if (char === "," || /\d/.test(char)) {
+    const isDigit = /\d/u.test(char);
+    const startsWithSeparatorNumber = (char === "," || char === ".") && /\d/u.test(nextChar);
+    if (isDigit || startsWithSeparatorNumber) {
       const start = i;
-      let hasComma = false;
-      if (char === ",") {
-        hasComma = true;
+      if (char === "," || char === ".") {
         i += 1;
       }
 
       while (i < expression.length) {
         const c = expression[i];
-        if (/\d/.test(c) || c === ".") {
-          i += 1;
-          continue;
-        }
-        if (c === "," && !hasComma) {
-          hasComma = true;
+        if (/\d/u.test(c) || c === "." || c === "," || c === "'") {
           i += 1;
           continue;
         }
@@ -1015,6 +1383,30 @@ function applyMinMaxCall(functionName, args) {
   return selected;
 }
 
+function applySumCall(args) {
+  if (!args.length) {
+    return makeQuantity(0);
+  }
+  let total = cloneQuantity(toArithmeticQuantity(args[0]));
+  for (let i = 1; i < args.length; i += 1) {
+    total = applyPlus(total, toArithmeticQuantity(args[i]));
+  }
+  total.isBoolean = false;
+  return total;
+}
+
+function applyAverageCall(args) {
+  if (!args.length) {
+    throw new Error("Durchschnitt benötigt mindestens ein Argument");
+  }
+  const total = applySumCall(args);
+  return applyDivision(total, makeQuantity(args.length));
+}
+
+function applyCountCall(args) {
+  return makeQuantity(args.length);
+}
+
 function evaluateAst(node, context) {
   if (node.type === "number") {
     return makeQuantity(node.value, { isPercent: node.isPercent });
@@ -1029,6 +1421,15 @@ function evaluateAst(node, context) {
     const argValues = node.args.map((arg) => evaluateAst(arg, context));
     if (functionName === "min" || functionName === "max") {
       return applyMinMaxCall(functionName, argValues);
+    }
+    if (functionName === "summe" || functionName === "sum") {
+      return applySumCall(argValues);
+    }
+    if (functionName === "durchschnitt" || functionName === "avg" || functionName === "average" || functionName === "mittelwert") {
+      return applyAverageCall(argValues);
+    }
+    if (functionName === "anzahl" || functionName === "count") {
+      return applyCountCall(argValues);
     }
     throw new Error(`Unbekannte Funktion: ${node.name}`);
   }
@@ -1093,10 +1494,10 @@ function preprocessExpression(expression, variables, lineValues) {
     .replace(/÷/gu, "/")
     .replace(/[–—]/gu, "-")
     .replace(/\bprozent\b/giu, "%")
-    .replace(/(\d[\d.,]*|,\d+)\s*%/gu, "$1%");
+    .replace(/(\d[\d.,']*|[.,]\d+)\s*%/gu, "$1%");
 
   // Schreibweisen wie "5 h 30 min" werden in "5 h + 30 min" überführt.
-  const compoundPattern = /(\d[\d.,]*\s*°?[\p{L}²/]+)\s+(?=\d[\d.,]*\s*°?[\p{L}²/]+)/gu;
+  const compoundPattern = /(\d[\d.,']*\s*°?[\p{L}²/]+)\s+(?=\d[\d.,']*\s*°?[\p{L}²/]+)/gu;
   let previous;
   do {
     previous = value;
@@ -1131,6 +1532,35 @@ function preprocessExpression(expression, variables, lineValues) {
     value = value.replace(regex, (match, prefix) => `${prefix}${placeholder}`);
     placeholders.set(placeholder, variable.quantity);
   }
+
+  value = value.replace(/@(\d+)\s*:\s*@(\d+)/gu, (match, startRaw, endRaw) => {
+    const start = Number(startRaw);
+    const end = Number(endRaw);
+    if (!Number.isInteger(start) || !Number.isInteger(end)) {
+      return match;
+    }
+
+    const step = start <= end ? 1 : -1;
+    const placeholdersForRange = [];
+    for (let lineNo = start; step > 0 ? lineNo <= end : lineNo >= end; lineNo += step) {
+      if (lineNo < 1 || lineNo > lineValues.length) {
+        throw new Error(`Ungültige Zeilenreferenz: @${lineNo}`);
+      }
+      const lineValue = lineValues[lineNo - 1];
+      if (!lineValue) {
+        continue;
+      }
+      const placeholder = `__line_${placeholderIndex}`;
+      placeholderIndex += 1;
+      placeholders.set(placeholder, lineValue);
+      placeholdersForRange.push(placeholder);
+    }
+
+    if (!placeholdersForRange.length) {
+      return "0";
+    }
+    return placeholdersForRange.join(";");
+  });
 
   value = value.replace(/@(\d+)/g, (match, lineNoRaw) => {
     const lineNo = Number(lineNoRaw);
@@ -1264,16 +1694,46 @@ function quantizeQuantityForStorage(quantity) {
   return rounded;
 }
 
+function groupIntegerPart(integerPart, separator) {
+  if (!separator) {
+    return integerPart;
+  }
+  let grouped = "";
+  for (let i = 0; i < integerPart.length; i += 1) {
+    const fromRight = integerPart.length - i;
+    grouped += integerPart[i];
+    if (fromRight > 1 && fromRight % 3 === 1) {
+      grouped += separator;
+    }
+  }
+  return grouped;
+}
+
 function formatNumber(value, fractionDigits = getDisplayFractionDigits()) {
   const rounded = Object.is(value, -0) ? 0 : value;
   const showAsInteger = appSettings.integerNoDecimals && isEffectivelyInteger(rounded);
   const minDigits = showAsInteger ? 0 : appSettings.fixedDecimals ? fractionDigits : 0;
   const maxDigits = showAsInteger ? 0 : fractionDigits;
-  return rounded.toLocaleString("de-DE", {
-    minimumFractionDigits: minDigits,
-    maximumFractionDigits: maxDigits,
-    useGrouping: true,
-  });
+  const sign = rounded < 0 ? "-" : "";
+  const absolute = Math.abs(rounded);
+  let raw = absolute.toFixed(maxDigits);
+  let [integerPart, fractionalPart = ""] = raw.split(".");
+
+  if (!appSettings.fixedDecimals) {
+    while (fractionalPart.length > minDigits && fractionalPart.endsWith("0")) {
+      fractionalPart = fractionalPart.slice(0, -1);
+    }
+  }
+
+  if (fractionalPart.length < minDigits) {
+    fractionalPart = fractionalPart.padEnd(minDigits, "0");
+  }
+
+  const groupedInteger = groupIntegerPart(integerPart, appSettings.thousandsSeparator);
+  if (!fractionalPart.length) {
+    return `${sign}${groupedInteger}`;
+  }
+  return `${sign}${groupedInteger}${appSettings.decimalSeparator}${fractionalPart}`;
 }
 
 function formatQuantity(quantity) {
@@ -1282,7 +1742,7 @@ function formatQuantity(quantity) {
   }
 
   if (!Number.isFinite(quantity.value)) {
-    return "Ungültiges Ergebnis";
+    return currentLanguage === "de" ? "Ungültiges Ergebnis" : "Invalid result";
   }
 
   if (quantity.isPercent && !quantity.unit) {
@@ -1313,7 +1773,7 @@ function classifyHighlightToken(token) {
   if (booleanTokenRegex.test(token)) {
     return "boolean";
   }
-  if (operatorWordTestRegex.test(token) || /^(?:>=|<=|==|!=|[+\-*/^()<>=%;])$/u.test(token)) {
+  if (operatorWordTestRegex.test(token) || /^(?:>=|<=|==|!=|[+\-*/^()<>=%;,])$/u.test(token)) {
     return "operator";
   }
   return "plain";
@@ -1439,26 +1899,20 @@ function normalizeLocaleNumbersForMathJs(expression) {
   while (index < expression.length) {
     const char = expression[index];
     const prev = index > 0 ? expression[index - 1] : "";
-    const startsWithComma = char === "," && index + 1 < expression.length && /\d/.test(expression[index + 1]);
-    const startsWithDigit = /\d/.test(char);
+    const next = index + 1 < expression.length ? expression[index + 1] : "";
+    const startsWithSeparatedDecimal = (char === "," || char === ".") && /\d/u.test(next);
+    const startsWithDigit = /\d/u.test(char);
     const prevIsIdentifier = prev ? /[\p{L}\p{N}_]/u.test(prev) : false;
 
-    if ((startsWithDigit || startsWithComma) && !prevIsIdentifier) {
+    if ((startsWithDigit || startsWithSeparatedDecimal) && !prevIsIdentifier) {
       const start = index;
-      let hasComma = false;
-      if (startsWithComma) {
-        hasComma = true;
+      if (startsWithSeparatedDecimal) {
         index += 1;
       }
 
       while (index < expression.length) {
         const current = expression[index];
-        if (/\d/.test(current) || current === ".") {
-          index += 1;
-          continue;
-        }
-        if (current === "," && !hasComma) {
-          hasComma = true;
+        if (/\d/u.test(current) || current === "." || current === "," || current === "'") {
           index += 1;
           continue;
         }
@@ -1634,7 +2088,12 @@ function evaluateLine(rawLine, context) {
     return { type: "comment", display: "", value: null };
   }
 
-  const assignment = parseAssignment(sanitizedLine);
+  const formulaLine = sanitizedLine.startsWith("=") ? sanitizedLine.slice(1).trim() : sanitizedLine;
+  if (!formulaLine) {
+    return { type: "comment", display: "", value: null };
+  }
+
+  const assignment = parseAssignment(formulaLine);
   if (assignment) {
     const rhsExpr = maybeStripLabel(assignment.rhs);
     const rhsValue = evaluateExpression(rhsExpr, context);
@@ -1664,7 +2123,7 @@ function evaluateLine(rawLine, context) {
     };
   }
 
-  const expression = expandUnitShorthand(maybeStripLabel(sanitizedLine));
+  const expression = expandUnitShorthand(maybeStripLabel(formulaLine));
   const result = evaluateExpression(expression, context);
   const storedValue = quantizeQuantityForStorage(result);
   context.lastValue = cloneQuantity(storedValue);
@@ -1687,7 +2146,7 @@ function evaluateSheet(text) {
       lineValues[i] = null;
       displayRows.push({
         type: "error",
-        display: `Fehler: ${error.message}`,
+        display: `${t("errorPrefix")}: ${localizeErrorMessage(error.message)}`,
         value: null,
       });
     }
@@ -1709,6 +2168,46 @@ function renderResults(evaluation) {
   resultsEl.replaceChildren(fragment);
 }
 
+function getEstimatedCharsPerInputVisualLine() {
+  if (!inputEl || typeof window === "undefined" || typeof window.getComputedStyle !== "function") {
+    return 80;
+  }
+  const styles = window.getComputedStyle(inputEl);
+  const fontSize = styles.fontSize || "16px";
+  const fontFamily = styles.fontFamily || "monospace";
+  const fontWeight = styles.fontWeight || "500";
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return 80;
+  }
+  context.font = `${fontWeight} ${fontSize} ${fontFamily}`;
+  const charWidth = context.measureText("0").width || 8;
+  const paddingLeft = Number.parseFloat(styles.paddingLeft || "0");
+  const paddingRight = Number.parseFloat(styles.paddingRight || "0");
+  const availableWidth = Math.max(1, inputEl.clientWidth - paddingLeft - paddingRight);
+  return Math.max(1, Math.floor(availableWidth / charWidth));
+}
+
+function buildInputLineNumberContent() {
+  const logicalLines = inputEl.value.split("\n");
+  if (!appSettings.autoWrap) {
+    return logicalLines.map((_, index) => String(index + 1)).join("\n");
+  }
+
+  const charsPerLine = getEstimatedCharsPerInputVisualLine();
+  const numberLines = [];
+  for (let lineIndex = 0; lineIndex < logicalLines.length; lineIndex += 1) {
+    const line = logicalLines[lineIndex].replace(/\t/g, "    ");
+    const wrappedCount = Math.max(1, Math.ceil(line.length / charsPerLine));
+    numberLines.push(String(lineIndex + 1));
+    for (let i = 1; i < wrappedCount; i += 1) {
+      numberLines.push("");
+    }
+  }
+  return numberLines.join("\n");
+}
+
 function renderLineNumbers(evaluation) {
   if (!inputLineNumbersEl || !resultLineNumbersEl) {
     return;
@@ -1723,10 +2222,10 @@ function renderLineNumbers(evaluation) {
   const inputLineCount = inputEl.value.split("\n").length;
   const resultLineCount = evaluation && evaluation.displayRows ? evaluation.displayRows.length : 0;
   const lineCount = Math.max(1, inputLineCount, resultLineCount);
-  const content = Array.from({ length: lineCount }, (_, index) => String(index + 1)).join("\n");
+  const resultContent = Array.from({ length: lineCount }, (_, index) => String(index + 1)).join("\n");
 
-  inputLineNumbersEl.textContent = content;
-  resultLineNumbersEl.textContent = content;
+  inputLineNumbersEl.textContent = buildInputLineNumberContent();
+  resultLineNumbersEl.textContent = resultContent;
   inputLineNumbersEl.scrollTop = inputEl.scrollTop;
   resultLineNumbersEl.scrollTop = resultsEl.scrollTop;
 }
@@ -1774,26 +2273,39 @@ function updateMathJsStatus() {
   }
 
   if (!appSettings.useMathJs) {
-    mathJsStatusEl.textContent = "math.js ist deaktiviert.";
+    mathJsStatusEl.textContent = t("mathJsStatusDisabled");
     return;
   }
 
   if (getMathJsInstance()) {
-    mathJsStatusEl.textContent = "math.js ist aktiv.";
+    mathJsStatusEl.textContent = t("mathJsStatusActive");
     return;
   }
 
   if (mathJsLoadState === "loading") {
-    mathJsStatusEl.textContent = "math.js wird geladen ...";
+    mathJsStatusEl.textContent = t("mathJsStatusLoading");
     return;
   }
 
   if (mathJsLoadState === "error") {
-    mathJsStatusEl.textContent = "math.js konnte nicht geladen werden. Fallback ist aktiv.";
+    mathJsStatusEl.textContent = t("mathJsStatusError");
     return;
   }
 
-  mathJsStatusEl.textContent = "math.js ist eingeschaltet, aber noch nicht geladen.";
+  mathJsStatusEl.textContent = t("mathJsStatusPending");
+}
+
+function updateNumberSeparatorStatus() {
+  if (!separatorStatusEl) {
+    return;
+  }
+  if (appSettings.decimalSeparator === appSettings.thousandsSeparator && appSettings.thousandsSeparator) {
+    separatorStatusEl.textContent = t("separatorInvalid");
+    separatorStatusEl.style.color = "#b3272d";
+    return;
+  }
+  separatorStatusEl.textContent = t("separatorValid");
+  separatorStatusEl.style.color = "#37547b";
 }
 
 function ensureMathJsLoaded() {
@@ -1869,14 +2381,28 @@ function applySettingsToUi() {
   if (settingLineNumbersEl) {
     settingLineNumbersEl.checked = appSettings.lineNumbers;
   }
+  if (settingAutoWrapEl) {
+    settingAutoWrapEl.checked = appSettings.autoWrap;
+  }
+  if (settingDecimalSeparatorEl) {
+    settingDecimalSeparatorEl.value = appSettings.decimalSeparator;
+  }
+  if (settingThousandsSeparatorEl) {
+    settingThousandsSeparatorEl.value = appSettings.thousandsSeparator;
+  }
   if (mathJsHelpEl) {
     mathJsHelpEl.hidden = !appSettings.useMathJs;
   }
   if (appEl && appEl.classList) {
     appEl.classList.toggle("syntax-highlight", appSettings.syntaxHighlighting);
     appEl.classList.toggle("show-line-numbers", appSettings.lineNumbers);
+    appEl.classList.toggle("auto-wrap", appSettings.autoWrap);
+  }
+  if (inputEl) {
+    inputEl.wrap = appSettings.autoWrap ? "soft" : "off";
   }
   updateMathJsStatus();
+  updateNumberSeparatorStatus();
   renderLineNumbers(lastEvaluation);
   renderInputHighlight();
 }
@@ -1941,8 +2467,10 @@ function escapeMarkdownCell(value) {
 
 function exportMarkdownTable() {
   const rows = createExportRows();
+  const inputHeader = currentLanguage === "de" ? "Eingabe" : "Input";
+  const resultHeader = currentLanguage === "de" ? "Ergebnis" : "Result";
   const lines = [
-    "| Eingabe | Ergebnis |",
+    `| ${inputHeader} | ${resultHeader} |`,
     "| --- | --- |",
   ];
 
@@ -1953,6 +2481,73 @@ function exportMarkdownTable() {
   const content = `${lines.join("\n")}\n`;
   const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
   downloadBlob(blob, createExportFilename("md", "markdown"));
+}
+
+function createExportObjects() {
+  const rows = createExportRows();
+  return rows.map((row, index) => ({
+    line: index + 1,
+    input: row.input || "",
+    result: row.result || "",
+  }));
+}
+
+function exportJson() {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    language: currentLanguage,
+    settings: {
+      decimalPlaces: appSettings.decimalPlaces,
+      fixedDecimals: appSettings.fixedDecimals,
+      integerNoDecimals: appSettings.integerNoDecimals,
+      preciseIntermediates: appSettings.preciseIntermediates,
+      lineNumbers: appSettings.lineNumbers,
+      autoWrap: appSettings.autoWrap,
+      decimalSeparator: appSettings.decimalSeparator,
+      thousandsSeparator: appSettings.thousandsSeparator,
+      useMathJs: appSettings.useMathJs
+    },
+    rows: createExportObjects()
+  };
+  const content = `${JSON.stringify(payload, null, 2)}\n`;
+  const blob = new Blob([content], { type: "application/json;charset=utf-8" });
+  downloadBlob(blob, createExportFilename("json", "json"));
+}
+
+function escapeYamlString(value) {
+  return String(value || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, "\\\"")
+    .replace(/\r?\n/g, "\\n");
+}
+
+function exportYaml() {
+  const rows = createExportObjects();
+  const lines = [
+    `exportedAt: \"${new Date().toISOString()}\"`,
+    `language: \"${currentLanguage}\"`,
+    "settings:",
+    `  decimalPlaces: ${appSettings.decimalPlaces}`,
+    `  fixedDecimals: ${appSettings.fixedDecimals}`,
+    `  integerNoDecimals: ${appSettings.integerNoDecimals}`,
+    `  preciseIntermediates: ${appSettings.preciseIntermediates}`,
+    `  lineNumbers: ${appSettings.lineNumbers}`,
+    `  autoWrap: ${appSettings.autoWrap}`,
+    `  decimalSeparator: \"${escapeYamlString(appSettings.decimalSeparator)}\"`,
+    `  thousandsSeparator: \"${escapeYamlString(appSettings.thousandsSeparator)}\"`,
+    `  useMathJs: ${appSettings.useMathJs}`,
+    "rows:"
+  ];
+
+  for (const row of rows) {
+    lines.push(`  - line: ${row.line}`);
+    lines.push(`    input: \"${escapeYamlString(row.input)}\"`);
+    lines.push(`    result: \"${escapeYamlString(row.result)}\"`);
+  }
+
+  const content = `${lines.join("\n")}\n`;
+  const blob = new Blob([content], { type: "application/x-yaml;charset=utf-8" });
+  downloadBlob(blob, createExportFilename("yaml", "yaml"));
 }
 
 function formatPdfNumber(value) {
@@ -2149,8 +2744,8 @@ function buildPdfPageStreams(rows, includeDivider) {
   }
 
   function startPage(commands) {
-    commands.push(textCmd(leftX, marginTop, "Eingabe", 9.2));
-    commands.push(textCmd(rightX, marginTop, "Ergebnis", 9.2));
+    commands.push(textCmd(leftX, marginTop, currentLanguage === "de" ? "Eingabe" : "Input", 9.2));
+    commands.push(textCmd(rightX, marginTop, currentLanguage === "de" ? "Ergebnis" : "Result", 9.2));
     commands.push(lineCmd(marginX, marginTop - 4, pageWidth - marginX, marginTop - 4, 0.72, 0.7));
     if (includeDivider) {
       commands.push(lineCmd(dividerX, marginBottom, dividerX, marginTop + 8, 0.82, 0.7));
@@ -2295,12 +2890,14 @@ function applyViewMode(mode, shouldPersist = true) {
   }
 
   if (resizeChipEl) {
-    resizeChipEl.setAttribute("aria-label", isFull ? "Standardansicht umschalten" : "Vollansicht umschalten");
-    resizeChipEl.title = isFull ? "Standardansicht umschalten" : "Vollansicht umschalten";
+    resizeChipEl.setAttribute("aria-label", isFull ? t("resizeToStandard") : t("resizeToFull"));
+    resizeChipEl.title = isFull ? t("resizeToStandard") : t("resizeToFull");
   }
 
   if (resizeFloatEl) {
-    resizeFloatEl.title = isFull ? "Standardansicht" : "Vollansicht";
+    const resizeFloatLabel = isFull ? t("resizeFloatTitleStandard") : t("resizeFloatTitleFull");
+    resizeFloatEl.title = resizeFloatLabel;
+    resizeFloatEl.setAttribute("aria-label", resizeFloatLabel);
   }
 
   if (isFull) {
@@ -2446,6 +3043,22 @@ if (exportMdBtnEl && typeof exportMdBtnEl.addEventListener === "function") {
   });
 }
 
+if (exportJsonBtnEl && typeof exportJsonBtnEl.addEventListener === "function") {
+  exportJsonBtnEl.addEventListener("click", () => {
+    exportJson();
+    toggleDownloadPopover(false);
+    toggleSettingsPopover(false);
+  });
+}
+
+if (exportYamlBtnEl && typeof exportYamlBtnEl.addEventListener === "function") {
+  exportYamlBtnEl.addEventListener("click", () => {
+    exportYaml();
+    toggleDownloadPopover(false);
+    toggleSettingsPopover(false);
+  });
+}
+
 if (settingUseMathJsEl && typeof settingUseMathJsEl.addEventListener === "function") {
   settingUseMathJsEl.addEventListener("change", () => {
     patchSettings({ useMathJs: settingUseMathJsEl.checked });
@@ -2491,6 +3104,46 @@ if (settingLineNumbersEl && typeof settingLineNumbersEl.addEventListener === "fu
   });
 }
 
+if (settingAutoWrapEl && typeof settingAutoWrapEl.addEventListener === "function") {
+  settingAutoWrapEl.addEventListener("change", () => {
+    patchSettings({ autoWrap: settingAutoWrapEl.checked });
+  });
+}
+
+function applySeparatorSettingsFromUi() {
+  if (!settingDecimalSeparatorEl || !settingThousandsSeparatorEl) {
+    return;
+  }
+  const decimalSeparator = settingDecimalSeparatorEl.value;
+  const thousandsSeparator = settingThousandsSeparatorEl.value;
+  const normalized = ensureValidSeparators(decimalSeparator, thousandsSeparator);
+
+  if (!normalized.isValid) {
+    if (separatorStatusEl) {
+      separatorStatusEl.textContent = t("separatorInvalid");
+      separatorStatusEl.style.color = "#b3272d";
+    }
+    return;
+  }
+
+  patchSettings({
+    decimalSeparator: normalized.decimalSeparator,
+    thousandsSeparator: normalized.thousandsSeparator
+  });
+}
+
+if (settingDecimalSeparatorEl && typeof settingDecimalSeparatorEl.addEventListener === "function") {
+  settingDecimalSeparatorEl.addEventListener("change", () => {
+    applySeparatorSettingsFromUi();
+  });
+}
+
+if (settingThousandsSeparatorEl && typeof settingThousandsSeparatorEl.addEventListener === "function") {
+  settingThousandsSeparatorEl.addEventListener("change", () => {
+    applySeparatorSettingsFromUi();
+  });
+}
+
 if (resizeChipEl && typeof resizeChipEl.addEventListener === "function") {
   resizeChipEl.addEventListener("click", () => {
     toggleViewMode();
@@ -2529,7 +3182,14 @@ if (typeof document !== "undefined" && typeof document.addEventListener === "fun
   });
 }
 
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("resize", () => {
+    renderLineNumbers(lastEvaluation);
+  });
+}
+
 inputEl.value = loadPersistedInput();
+applyLocalization();
 applySettingsToUi();
 if (appSettings.useMathJs) {
   ensureMathJsLoaded();

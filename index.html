@@ -18,8 +18,8 @@
     <header class="topbar">
       <div class="topbar-main">
         <div>
-          <h1>Zeilenrechner</h1>
-          <p>Kommentare, Variablen, Prozentrechnung und Einheitenumrechnung wie in Soulver.</p>
+          <h1 id="ui-title">Zeilenrechner</h1>
+          <p id="ui-subtitle">Kommentare, Variablen, Prozentrechnung und Einheitenumrechnung wie in Soulver.</p>
         </div>
         <div class="help-wrap">
           <div class="chip-row">
@@ -35,22 +35,30 @@
             </button>
           </div>
           <div id="help-popover" class="help-popover" hidden>
-            <h2>Syntax</h2>
+            <h2 id="help-syntax-heading">Syntax</h2>
             <ul>
-              <li>Arithmetik: <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>^</code></li>
-              <li>Text-Operatoren: <code>plus</code>, <code>minus</code>, <code>mal</code>, <code>of</code>, <code>von</code>, <code>on</code>, <code>off</code></li>
-              <li>Umrechnung: <code>in</code>, <code>to</code>/<code>zu</code>, <code>as</code>/<code>als</code>, Kurzform: <code>km m</code></li>
-              <li>Zuweisung: <code>=</code>, <code>+=</code>, <code>-=</code></li>
-              <li>Referenzen: <code>@3</code> (Zeile 3), <code>ans</code>/<code>last</code></li>
-              <li>Vergleiche: <code>&gt;</code>, <code>&gt;=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>==</code>, <code>!=</code></li>
-              <li>Funktionen: <code>min(...)</code>, <code>max(...)</code> (z. B. <code>min(3;5)</code>)</li>
-              <li>Kommentare: Zeilen mit <code>#</code> oder <code>//</code></li>
-              <li>Ein trailing <code>=</code> wird ignoriert: <code>1 + 2 =</code></li>
+              <li id="help-syntax-1">Arithmetik: <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>^</code></li>
+              <li id="help-syntax-2">Text-Operatoren: <code>plus</code>, <code>minus</code>, <code>mal</code>, <code>of</code>, <code>von</code>, <code>on</code>, <code>off</code></li>
+              <li id="help-syntax-3">Umrechnung: <code>in</code>, <code>to</code>/<code>zu</code>, <code>as</code>/<code>als</code>, Kurzform: <code>km m</code></li>
+              <li id="help-syntax-4">Zuweisung: <code>=</code>, <code>+=</code>, <code>-=</code></li>
+              <li id="help-syntax-5">Referenzen: <code>@3</code> (Zeile 3), <code>ans</code>/<code>last</code></li>
+              <li id="help-syntax-6">Vergleiche: <code>&gt;</code>, <code>&gt;=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>==</code>, <code>!=</code></li>
+              <li id="help-syntax-7">Kommentare: Zeilen mit <code>#</code> oder <code>//</code></li>
+              <li id="help-syntax-8">Ein trailing <code>=</code> wird ignoriert: <code>1 + 2 =</code></li>
+              <li id="help-syntax-9">Variablennamen dürfen Leerzeichen und Umlaute enthalten; sie sind nicht case-sensitiv.</li>
             </ul>
-            <p class="help-link">Weiterführende Syntax: <a href="https://mathjs.org/docs/expressions/syntax.html" target="_blank" rel="noopener noreferrer">mathjs.org/docs/expressions/syntax.html</a></p>
+            <h2 id="help-functions-heading">Funktionen</h2>
+            <ul>
+              <li id="help-functions-1"><code>min(...)</code>, <code>max(...)</code> (z. B. <code>min(3;5)</code>)</li>
+              <li id="help-functions-2"><code>Summe(...)</code>/<code>SUM(...)</code> (Excel-ähnlich, z. B. <code>Summe(wert1, wert2)</code>)</li>
+              <li id="help-functions-3">Bereiche: <code>Summe(@1:@4)</code> summiert Zeilen 1 bis 4 (leere/Kommentarzeilen werden übersprungen)</li>
+              <li id="help-functions-4"><code>Durchschnitt(...)</code>/<code>AVG(...)</code>, <code>Anzahl(...)</code>/<code>COUNT(...)</code></li>
+              <li id="help-functions-5">Funktionsnamen sind case-insensitiv und funktionieren mit oder ohne führendes <code>=</code>.</li>
+            </ul>
+            <p id="help-link-line" class="help-link">Weiterführende Syntax: <a id="help-link-mathjs" href="https://mathjs.org/docs/expressions/syntax.html" target="_blank" rel="noopener noreferrer">mathjs.org/docs/expressions/syntax.html</a></p>
 
             <div id="mathjs-help" class="mathjs-help" hidden>
-              <h2>Zusätzlich Mit math.js</h2>
+              <h2 id="help-mathjs-heading">Zusätzlich Mit math.js</h2>
               <ul>
                 <li><span class="mathjs-chip">math.js</span> <code>sqrt(x)</code></li>
                 <li><span class="mathjs-chip">math.js</span> <code>cbrt(x)</code></li>
@@ -60,31 +68,35 @@
               </ul>
             </div>
 
-            <h2>Unterstützte Umrechnungen</h2>
+            <h2 id="help-conversions-heading">Unterstützte Umrechnungen</h2>
             <ul>
-              <li>Länge: <code>mm</code>, <code>cm</code>, <code>m</code>, <code>km</code>, <code>in</code>, <code>ft</code>, <code>yd</code>, <code>mi</code></li>
-              <li>Masse: <code>mg</code>, <code>g</code>, <code>kg</code>, <code>t</code>, <code>oz</code>, <code>lb</code></li>
-              <li>Zeit: <code>ms</code>, <code>s</code>, <code>min</code>, <code>h</code>, <code>d</code>, <code>wk</code></li>
-              <li>Volumen: <code>ml</code>, <code>l</code></li>
-              <li>Fläche: <code>cm²</code>, <code>m²</code>, <code>km²</code>, <code>ha</code></li>
-              <li>Geschwindigkeit: <code>m/s</code>, <code>km/h</code>, <code>mph</code></li>
-              <li>Temperatur: <code>°C</code>, <code>°F</code>, <code>K</code></li>
-              <li>Währung: <code>€</code>/<code>EUR</code>, <code>USD</code>, <code>CHF</code>, <code>GBP</code></li>
+              <li id="help-conv-1">Länge: <code>mm</code>, <code>cm</code>, <code>m</code>, <code>km</code>, <code>in</code>, <code>ft</code>, <code>yd</code>, <code>mi</code></li>
+              <li id="help-conv-2">Masse: <code>mg</code>, <code>g</code>, <code>kg</code>, <code>t</code>, <code>oz</code>, <code>lb</code></li>
+              <li id="help-conv-3">Zeit: <code>ms</code>, <code>s</code>, <code>min</code>, <code>h</code>, <code>d</code>, <code>wk</code></li>
+              <li id="help-conv-4">Volumen: <code>ml</code>, <code>l</code></li>
+              <li id="help-conv-5">Fläche: <code>cm²</code>, <code>m²</code>, <code>km²</code>, <code>ha</code></li>
+              <li id="help-conv-6">Geschwindigkeit: <code>m/s</code>, <code>km/h</code>, <code>mph</code></li>
+              <li id="help-conv-7">Temperatur: <code>°C</code>, <code>°F</code>, <code>K</code></li>
+              <li id="help-conv-8">Währung: <code>€</code>/<code>EUR</code>, <code>USD</code>, <code>CHF</code>, <code>GBP</code></li>
             </ul>
 
             <button id="load-demo-btn" class="demo-btn" type="button">Demo</button>
           </div>
           <div id="download-popover" class="download-popover" hidden>
-            <h2>Export</h2>
+            <h2 id="download-heading">Export</h2>
             <button id="export-pdf-divider-btn" class="download-option" type="button">PDF mit Trennstrich</button>
             <button id="export-pdf-plain-btn" class="download-option" type="button">PDF ohne Trennstrich</button>
             <button id="export-md-btn" class="download-option" type="button">Markdown-Tabelle</button>
+            <button id="export-json-btn" class="download-option" type="button">JSON</button>
+            <button id="export-yaml-btn" class="download-option" type="button">YAML</button>
           </div>
           <div id="settings-popover" class="settings-popover" hidden>
-            <h2>Einstellungen</h2>
+            <h2 id="settings-heading">Einstellungen</h2>
+
+            <h3 id="settings-group-calc" class="settings-group-title">Berechnung</h3>
 
             <label class="setting-item" for="setting-use-mathjs">
-              <span class="setting-label">math.js verwenden</span>
+              <span id="label-use-mathjs" class="setting-label">math.js verwenden</span>
               <span class="switch">
                 <input id="setting-use-mathjs" type="checkbox">
                 <span class="switch-ui"></span>
@@ -92,8 +104,18 @@
             </label>
             <p id="mathjs-status" class="setting-note">math.js ist deaktiviert.</p>
 
+            <label class="setting-item" for="setting-precise-intermediate">
+              <span id="label-precise-intermediate" class="setting-label">Mit genauen Zwischenergebnissen rechnen</span>
+              <span class="switch">
+                <input id="setting-precise-intermediate" type="checkbox">
+                <span class="switch-ui"></span>
+              </span>
+            </label>
+
+            <h3 id="settings-group-display" class="settings-group-title">Anzeige</h3>
+
             <label class="setting-item" for="setting-decimals">
-              <span class="setting-label">Nachkommastellen</span>
+              <span id="label-decimals" class="setting-label">Nachkommastellen</span>
               <select id="setting-decimals" class="setting-select">
                 <option value="0">0</option>
                 <option value="1">1</option>
@@ -110,7 +132,7 @@
             </label>
 
             <label class="setting-item" for="setting-fixed-decimals">
-              <span class="setting-label">Fixe Nachkommastellen</span>
+              <span id="label-fixed-decimals" class="setting-label">Fixe Nachkommastellen</span>
               <span class="switch">
                 <input id="setting-fixed-decimals" type="checkbox">
                 <span class="switch-ui"></span>
@@ -118,23 +140,15 @@
             </label>
 
             <label class="setting-item" for="setting-integer-no-decimals">
-              <span class="setting-label">Ganzzahlen ohne Nachkommastellen</span>
+              <span id="label-integer-no-decimals" class="setting-label">Ganzzahlen ohne Nachkommastellen</span>
               <span class="switch">
                 <input id="setting-integer-no-decimals" type="checkbox">
                 <span class="switch-ui"></span>
               </span>
             </label>
 
-            <label class="setting-item" for="setting-precise-intermediate">
-              <span class="setting-label">Mit genauen Zwischenergebnissen rechnen</span>
-              <span class="switch">
-                <input id="setting-precise-intermediate" type="checkbox">
-                <span class="switch-ui"></span>
-              </span>
-            </label>
-
             <label class="setting-item" for="setting-syntax-highlighting">
-              <span class="setting-label">Syntax-Highlighting</span>
+              <span id="label-syntax-highlighting" class="setting-label">Syntax-Highlighting</span>
               <span class="switch">
                 <input id="setting-syntax-highlighting" type="checkbox">
                 <span class="switch-ui"></span>
@@ -142,12 +156,41 @@
             </label>
 
             <label class="setting-item" for="setting-line-numbers">
-              <span class="setting-label">Zeilennummern</span>
+              <span id="label-line-numbers" class="setting-label">Zeilennummern</span>
               <span class="switch">
                 <input id="setting-line-numbers" type="checkbox">
                 <span class="switch-ui"></span>
               </span>
             </label>
+
+            <label class="setting-item" for="setting-auto-wrap">
+              <span id="label-auto-wrap" class="setting-label">Automatischer Zeilenumbruch</span>
+              <span class="switch">
+                <input id="setting-auto-wrap" type="checkbox">
+                <span class="switch-ui"></span>
+              </span>
+            </label>
+
+            <h3 id="settings-group-number-format" class="settings-group-title">Zahlenformat</h3>
+
+            <label class="setting-item" for="setting-decimal-separator">
+              <span id="label-decimal-separator" class="setting-label">Dezimalzeichen</span>
+              <select id="setting-decimal-separator" class="setting-select">
+                <option value=",">Komma (,)</option>
+                <option value=".">Punkt (.)</option>
+              </select>
+            </label>
+
+            <label class="setting-item" for="setting-thousands-separator">
+              <span id="label-thousands-separator" class="setting-label">Tausendertrennzeichen</span>
+              <select id="setting-thousands-separator" class="setting-select">
+                <option value=".">Punkt (.)</option>
+                <option value=",">Komma (,)</option>
+                <option value="'">Hochkomma (')</option>
+                <option value="">Keines</option>
+              </select>
+            </label>
+            <p id="separator-status" class="setting-note"></p>
           </div>
         </div>
       </div>
@@ -155,7 +198,7 @@
 
     <main class="workspace">
       <section class="pane input-pane">
-        <div class="pane-title">Eingaben</div>
+        <div id="pane-title-input" class="pane-title">Eingaben</div>
         <div class="input-editor">
           <pre id="sheet-input-line-numbers" class="line-number-gutter" aria-hidden="true"></pre>
           <div class="editor-content">
@@ -166,7 +209,7 @@
       </section>
 
       <section class="pane output-pane">
-        <div class="pane-title">Ergebnisse</div>
+        <div id="pane-title-output" class="pane-title">Ergebnisse</div>
         <div class="result-editor">
           <pre id="sheet-result-line-numbers" class="line-number-gutter" aria-hidden="true"></pre>
           <div id="sheet-results" aria-live="polite"></div>
@@ -175,10 +218,9 @@
     </main>
 
     <footer class="hints">
-      <span><strong>Kommentare:</strong> Zeilen mit <code>#</code> oder <code>//</code></span>
-      <span><strong>Variablen:</strong> <code>name = ...</code>, <code>name += ...</code>, <code>name -= ...</code></span>
-      <span><strong>Umrechnung:</strong> <code>10 km in m</code>, <code>32 °F as °C</code></span>
-      <span><strong>Deutsche Zahlen:</strong> Komma als Dezimalzeichen, Punkt als Tausendertrennzeichen</span>
+      <span id="hint-comments"><strong>Kommentare:</strong> Zeilen mit <code>#</code> oder <code>//</code></span>
+      <span id="hint-variables"><strong>Variablen:</strong> <code>name = ...</code>, <code>name += ...</code>, <code>name -= ...</code></span>
+      <span id="hint-conversions"><strong>Umrechnung:</strong> <code>10 km in m</code>, <code>32 °F as °C</code></span>
     </footer>
 
     <button id="resize-float" class="resize-float" type="button" aria-label="Standardansicht wiederherstellen" title="Standardansicht">

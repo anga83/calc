@@ -177,6 +177,14 @@ body {
   color: #2d4f7f;
 }
 
+.settings-group-title {
+  margin: 0.65rem 0 0.25rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #46658e;
+}
+
 .setting-item {
   display: flex;
   align-items: center;
@@ -484,6 +492,14 @@ body {
 
 .app.syntax-highlight #sheet-input::selection {
   background: rgba(42, 116, 204, 0.25);
+}
+
+.app.auto-wrap #sheet-input,
+.app.auto-wrap #sheet-highlight {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  overflow-x: hidden;
 }
 
 .hl-comment {
