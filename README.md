@@ -1,163 +1,162 @@
 # Zeilenrechner (Soulver-ähnliche Webapp)
 
 ## 1. Beschreibung der Anwendung
-Diese Webapp ist ein zeilenbasierter Rechner im Stil von Soulver: Links werden Eingaben erfasst, rechts erscheinen pro Zeile die Ergebnisse in Echtzeit. Die Anwendung unterstützt Kommentare, Variablen, Zeilenreferenzen, Prozentrechnung, Vergleiche, Funktionen und Einheiten-Umrechnung.
+Diese Anwendung ist ein zeilenbasierter Rechner im Stil von Soulver: links stehen Eingaben, rechts erscheinen die Ergebnisse pro Zeile in Echtzeit. Sie unterstützt Kommentare, Variablen, Referenzen, Prozentrechnung, Vergleichsoperatoren, Einheitenumrechnung und Excel-ähnliche Funktionen.
 
-Der Fokus liegt auf schnellem, nachvollziehbarem Rechnen mit Zwischenschritten. Ergebnisse können weiterverwendet, das Sheet exportiert und der letzte Stand inklusive Ansicht/Einstellungen persistiert werden.
+Der Rechner ist auf produktives Arbeiten mit Zwischenschritten ausgelegt: Eingaben bleiben editierbar, Ergebnisse sind direkt wiederverwendbar, Einstellungen werden gespeichert und Exporte stehen in mehreren Formaten zur Verfügung.
 
-## 2. Feature-Übersicht
+## 2. Features
 ### Haupt-Features
 - Zeilenweises Rechnen mit Live-Auswertung.
-- Zwei-Spalten-Layout mit ca. `70 %` Eingabe und `30 %` Ergebnis.
-- Kommentare:
-  - Ganze Kommentarzeilen mit `#` oder `//`.
-  - Inline-Kommentare mit `//`.
-- Variablen:
-  - `name = ...`, `name += ...`, `name -= ...`.
-  - Mehrwort-Variablennamen werden unterstützt.
-  - Referenz auf letztes Ergebnis via `ans` oder `last`.
-- Zeilenreferenzen:
-  - `@n` referenziert Zeile `n`.
-  - Falls `@n` auf eine leere Zeile zeigt: `Fehler: Zeile n leer`.
-- Vergleiche / Conditionals:
-  - `>`, `>=`, `<`, `<=`, `==`, `!=`.
-  - Ergebnis als `true`/`false`.
-- Funktionen:
-  - `min(...)`, `max(...)`.
-  - Argumente z. B. `min(3;5)`.
+- Zweispalten-Layout (ca. 70 % Eingabe / 30 % Ergebnis), responsiv für Desktop und Mobile.
+- Kommentare über `#` und `//` (inkl. Inline-`//`).
+- Variablen mit Zuweisung und Update:
+  - `name = ...`
+  - `name += ...`
+  - `name -= ...`
+- Variablennamen dürfen Leerzeichen und Umlaute enthalten; Variablen sind case-insensitive.
+- Referenzen:
+  - `@n` für Zeile `n`
+  - `ans` / `last` für das letzte Ergebnis
+- Fehlertext bei leerer `@`-Referenz: `Fehler: Zeile x leer`.
+- Vergleichsoperatoren:
+  - `>`, `>=`, `<`, `<=`, `==`, `!=`
+  - Ausgabe als `true` / `false`
 - Prozentrechnung:
-  - `3% von 100`, `3 % von 100`, `3 Prozent von 100`.
-  - Prozentoperationen in Ausdrücken (z. B. `100 + 19%`).
-- Einheiten und Umrechnung:
-  - Operatoren: `in`, `to`/`zu`, `as`/`als`.
-  - Kurzform: `km m`.
-  - Unterstützt u. a. Länge, Masse, Zeit, Volumen, Fläche, Geschwindigkeit, Temperatur, Währungen.
-- Trailing `=` wird toleriert:
-  - `1 + 2 =` ist gültig und erzeugt keinen Fehler.
-
-### Zahlensystem und Parsing (de-DE)
-- Ausgabe mit deutschem Zahlenformat:
-  - Dezimaltrennzeichen `,`.
-  - Tausendertrennzeichen `.`.
-- Eingabeverarbeitung für Punkte:
-  - Tausenderpunkte werden ignoriert (`3.000.000` -> `3000000`).
-  - Falls ein Punkt nicht wie ein Tausendertrenner aussieht, wird er als Dezimalzeichen interpretiert (`1.1` -> `1,1`).
-
-### Einstellungen (persistiert)
-- `math.js verwenden` (ohne Reload umschaltbar, mit Fallback auf internen Parser).
-- `Nachkommastellen` (`0` bis `10`, Standard: `4`).
-- `Fixe Nachkommastellen` (an/aus).
-- `Ganzzahlen ohne Nachkommastellen` (an/aus).
-- `Mit genauen Zwischenergebnissen rechnen` (an/aus, Standard: an).
-- `Syntax-Highlighting` (Eingabe + PDF-Export).
-- `Zeilennummern` (Eingabe + Ergebnis, sowie PDF-Export; nicht im Markdown-Export).
-
-### Hilfe, Bedienung und UX
-- Hilfe-Chip `?` mit Syntaxübersicht, Umrechnungen, math.js-Link und Demo-Button.
-- Zusatzblock „Zusätzlich Mit math.js“ im Hilfe-Popover, sobald math.js aktiviert ist.
-- Download-Chip mit Export-Popover.
-- Settings-Chip mit allen Laufzeit-Einstellungen.
-- Fullsize-Button:
-  - Blendet Topbar und Footer-Hinweise aus.
-  - Floating-Resize-Button bleibt oben rechts sichtbar.
-  - Ansicht wird über Local Storage wiederhergestellt.
+  - `3% von 100`, `3 % von 100`, `3 Prozent von 100`
+- Einheitenumrechnung:
+  - Operatoren: `in`, `to`, `zu`, `as`, `als`
+  - Kurzform: `km m`
+  - Unterstützte Dimensionen: Länge, Masse, Zeit, Volumen, Fläche, Geschwindigkeit, Temperatur, Währung
+- Trailing `=` wird ignoriert (`1 + 2 =` ist gültig).
 - `Tab` im Eingabefeld fügt 4 Leerzeichen ein.
-- Scroll-Synchronisierung zwischen Eingabe, Highlight-Overlay, Ergebnisspalte und (falls aktiv) Zeilennummern.
 
-### Export
-- PDF-Export:
-  - Mit oder ohne mittigen Trennstrich.
-  - Optional mit Syntax-Highlighting in der Eingabespalte.
-  - Optional mit Zeilennummern auf beiden Seiten (grau dargestellt).
-- Markdown-Export:
-  - Tabelle `Eingabe | Ergebnis`.
-  - Zeilennummern werden hier bewusst nicht ausgegeben.
+### Funktionen (inkl. Excel-ähnlich)
+- `min(...)`, `max(...)`
+- `SUMME(...)` / `SUM(...)`
+- `DURCHSCHNITT(...)` / `MITTELWERT(...)` / `AVG(...)` / `AVERAGE(...)`
+- `ANZAHL(...)` / `COUNT(...)`
+- Bereiche über Zeilenreferenzen:
+  - `SUMME(@1:@4)` summiert Zeilen 1–4
+  - Leere Zeilen und Kommentarzeilen werden dabei übersprungen
+- Funktionsnamen sind case-insensitive und mit/ohne führendes `=` nutzbar.
+
+### Zahlenformat und Parsing
+- Standard ist deutsch:
+  - Dezimalzeichen `,`
+  - Tausendertrennzeichen `.`
+- Punkte in der Eingabe werden kontextsensitiv behandelt:
+  - Tausenderpunkte werden entfernt (`3.000.000` -> `3000000`)
+  - Nicht-tausenderkonforme Punkte werden als Dezimalpunkt interpretiert (`1.1` -> `1,1`)
+- Zahlensystem ist konfigurierbar (Dezimal-/Tausendertrennzeichen in den Einstellungen).
+- Widersprüche (gleiches Zeichen für Dezimal und Tausender) werden direkt validiert.
+
+### Einstellungen (persistiert via Local Storage)
+- `math.js verwenden` (ohne Reload umschaltbar)
+- `Mit genauen Zwischenergebnissen rechnen`
+- `Nachkommastellen` (0–10, Standard: 4)
+- `Fixe Nachkommastellen` (Standard: aus)
+- `Ganzzahlen ohne Nachkommastellen`
+- `Syntax-Highlighting`
+- `Zeilennummern` (Input/Ergebnisse + PDF, nicht Markdown)
+- `Automatischer Zeilenumbruch`
+- `Sprache` (`Browser-Standard`, `Deutsch`, `English`)
+- `Dezimalzeichen` / `Tausendertrennzeichen`
+
+### Hilfe, UI und Quality-of-Life
+- Start mit leerem Eingabefeld.
+- Hilfe-Chip `?` mit:
+  - Syntaxübersicht
+  - Funktionsübersicht
+  - Umrechnungsübersicht
+  - Link auf math.js-Syntax: <https://mathjs.org/docs/expressions/syntax.html>
+  - Demo-Button zum Laden von Beispielzeilen
+- Download-Chip mit Export-Popover.
+- Settings-Chip mit gruppierten Einstellungsblöcken.
+- Fullsize-Ansicht:
+  - blendet Topbar und Footer aus
+  - halbtransparenter Floating-Button bleibt sichtbar
+  - Zustand wird gespeichert
+- Scroll-Synchronisierung zwischen Eingabe, Highlight-Overlay, Ergebnis und Zeilennummern.
+- Statuszeile für math.js zeigt nur im Fehlerfall eine Meldung (z. B. CDN nicht erreichbar).
+
+### Exporte
+- PDF:
+  - mit oder ohne vertikalen Trennstrich
+  - optional mit Syntax-Highlighting
+  - optional mit Zeilennummern
+- Markdown (Tabelle)
+- JSON
+- YAML
+
+### Persistenz
+- Letzter Eingabeinhalt
+- Letzter View-Mode (Standard/Fullsize)
+- Alle Einstellungen
 
 ### PWA
-- Webapp ist als Progressive Web App vorbereitet:
-  - `manifest.webmanifest` (Standalone-Display, Theme-Farben, App-Metadaten).
-  - Service Worker (`sw.js`) mit Asset-Caching und Offline-Fallback für `index.html`.
-  - App-Icons in mehreren Größen inkl. `maskable`-Variante.
-  - Service-Worker-Registrierung beim Laden der App.
-
-### Persistenz (Local Storage)
-- Letzter Eingabetext.
-- Letzter View-Mode (Standard/Fullsize).
-- Alle Einstellungen.
+- `manifest.webmanifest` vorhanden
+- Service Worker (`sw.js`) registriert
+- Offline-Caching/Fallback
+- App-Icons inkl. maskable Variante
 
 ## 3. Technischer Aufbau
-### Architektur
-- `index.html`
-  - UI-Struktur: Topbar, Editor-Panes, Popover (Hilfe, Export, Einstellungen), Fullsize-Float-Button.
-- `styles.css`
-  - Responsives Layout, Pane-Struktur, Highlight-Farben, Fullsize-Zustand, Zeilennummern-Gutter.
-- `app.js`
-  - Parser/Evaluator, State-Management, Persistenz, Export (Markdown/PDF), Event-Handling.
-
 ### Technologien
-- HTML5, CSS3, Vanilla JavaScript (ES6+).
-- Browser APIs: `localStorage`, DOM Events, `Blob`, `URL.createObjectURL`.
-- Optional: `math.js` (dynamisch per CDN geladen, nur wenn aktiviert).
+- HTML5
+- CSS3
+- Vanilla JavaScript (ES6+)
+- Optional `math.js` (dynamisch per CDN geladen)
 
-### Rechenlogik
-- Interner Tokenizer + Parser (Operator-Precedence) + Evaluator.
-- Unterstützt:
-  - Arithmetik, Prozentlogik, Vergleiche, Funktionen (`min/max`), Einheiten, Variablen/Referenzen.
-- Optionaler math.js-Pfad:
-  - Wird nur für kompatible Ausdrücke genutzt.
-  - Bei Fehlern/Inkompatibilität erfolgt Fallback auf den internen Evaluator.
+### Struktur
+- `index.html`
+  - Grundlayout, Toolbar-Chips, Popover (Hilfe/Export/Settings), Eingabe-/Ergebnisbereiche
+- `styles.css`
+  - Layout, responsives Verhalten, Theme, Zeilennummern-/Wrap-/Fullscreen-Styling
+- `app.js`
+  - Parser, Evaluator, Variablen-/Referenzlogik, Funktionen, Umrechnungen, i18n, Einstellungen, Persistenz, Exporte
+- `manifest.webmanifest`, `sw.js`, `icons/*`
+  - PWA-Metadaten, Caching, App-Icons
+
+### Parser-/Evaluator-Konzept
+- Eigener Tokenizer + Parser mit Operator-Prioritäten.
+- Verarbeitet natürliche Operatorwörter (z. B. `von`, `zu`, `als`) zusätzlich zu Symboloperatoren.
+- Führt Variablenauflösung, Zeilenreferenzen, Prozentlogik und Einheitenlogik in einer Pipeline zusammen.
+- Optionaler math.js-Pfad für komplexere Ausdrücke, mit Fallback auf den internen Evaluator.
 
 ### Export-Implementierung
-- Markdown:
-  - Direkter Tabellenexport aus Eingabe-/Ergebniszeilen.
-- PDF:
-  - Manuelle PDF-Erzeugung mit eigener Text-Layout-Logik.
-  - Seitenumbruch, optionaler Divider, Tokenfarben (bei Highlighting), optionale Zeilennummern.
+- Markdown/JSON/YAML über direkte Datenserialisierung der Zeilen.
+- PDF wird ohne externe PDF-Library erzeugt (eigene Layout- und Text-Rendering-Logik inkl. Seitenumbruch).
 
 ## 4. Hinweise für ein anderes LLM zur Fortführung
-### Produktvorgaben aus dem Verlauf
-- Soulver-ähnliches Verhalten: Zeilenweise Eingabe links, Ergebnis je Zeile rechts.
-- Locale de-DE für Zahlenanzeige und Parsing.
-- Start mit leerem Eingabefeld; Demo wird nur über den Button geladen.
-- Toolbar-Reihenfolge rechts oben: `?`, Download, Einstellungen, Fullsize.
-- `?`, Download und Einstellungen sind nur in der Standardansicht sichtbar.
-
-### Wichtige Syntax-Details
-- Kommentare: `#` und `//`.
-- Trailing `=` ignorieren.
-- Synonyme für Umrechnung: `to/zu`, `as/als`.
-- Vergleichsoperatoren und boolesche Ergebnisse müssen erhalten bleiben.
-- `@n` muss bei leerer referenzierter Zeile den Fehler `Fehler: Zeile n leer` liefern.
-- Prozentformen mit `%`, `Prozent`, `von` unterstützen.
-
-### Bekannte Implementierungsdetails
-- Mehrwort-Variablen werden im Preprocessing per Platzhalter ersetzt.
-- Inline-`//` wird mit Quote-Handling ermittelt, nicht per blindem Split.
-- Zuweisungsparser darf `==`, `>=`, `<=`, `!=` nicht als Assignment werten.
-- `Ganzzahlen ohne Nachkommastellen` greift zusätzlich zur allgemeinen Nachkommastellen-Logik.
-- `Fixe Nachkommastellen` steuert min/max Fraction Digits.
-- Bei deaktivierter Option `Mit genauen Zwischenergebnissen rechnen` werden Variablen für Folgezeilen quantisiert gespeichert.
-
-### Persistenz-Keys
-- `zeilenrechner:last-sheet`
-- `zeilenrechner:view-mode`
-- `zeilenrechner:settings`
-
-### Settings-Modell (aktuell)
-- `useMathJs: boolean`
-- `decimalPlaces: number` (`0..10`)
-- `fixedDecimals: boolean`
-- `integerNoDecimals: boolean`
-- `preciseIntermediates: boolean`
-- `syntaxHighlighting: boolean`
-- `lineNumbers: boolean`
-
-### Sensible Bereiche für Änderungen
-- Scroll-Synchronisierung zwischen Input/Output/Highlight/Gutter nicht brechen.
-- Bei Layout-Änderungen auf Grid/Flex-Min-Height (`min-height: 0`) achten.
-- PDF-Layout ist manuell berechnet; kleine Breiten-/Abstandsänderungen können Umbrüche beeinflussen.
-- Bei Parser-Erweiterungen unbedingt Operator-Prioritäten und Fallback-Verhalten zu math.js testen.
+- Produktziel: Soulver-ähnlicher Zeilenrechner mit Schwerpunkt auf natürlicher Syntax, Variablen und Reproduzierbarkeit von Zwischenschritten.
+- Sprache:
+  - UI ist vollständig lokalisiert (`de`/`en`)
+  - Standard über Browser-Sprache, aber per Einstellung übersteuerbar
+- Wichtige Kompatibilitätsregeln:
+  - Trailing `=` tolerieren
+  - `@n` auf leere Zeile -> klarer Fehlertext
+  - Variablen case-insensitive behandeln
+  - Deutsche und englische Synonyme für Umrechnung unterstützen (`to/zu`, `as/als`)
+- Zahlenlogik ist sensibel:
+  - Tausender-/Dezimaltrennzeichen sind benutzerkonfigurierbar
+  - Punkt muss bei nicht-tausenderkonformen Mustern als Dezimalzeichen interpretiert werden
+- Excel-ähnliche Funktionen:
+  - Case-insensitive
+  - Mit/ohne `=`
+  - Bereichsreferenzen `@x:@y` müssen leere und Kommentarzeilen überspringen
+- UI-Details, die nicht regressieren dürfen:
+  - 70/30-Aufteilung Input/Ergebnis
+  - saubere Zeilennummern-Ausrichtung bei an/aus
+  - funktionierendes synchrones Scrollen
+  - Fullsize-Toggle inkl. Persistenz
+- Exportdetails:
+  - PDF berücksichtigt Syntax-Highlighting und optional Zeilennummern
+  - Markdown-Export enthält bewusst keine Zeilennummern
+- Persistenz-Keys:
+  - `zeilenrechner:last-sheet`
+  - `zeilenrechner:view-mode`
+  - `zeilenrechner:settings`
 
 ## 5. Verwendetes Tool und LLM
-- Tool: Codex (Desktop-Agent mit Shell- und Patch-Workflow).
-- LLM: GPT-5 (Codex-basierte Session).
+- Tool: Codex (Desktop-Agent)
+- LLM: GPT-5 (Codex)
