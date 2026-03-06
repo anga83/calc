@@ -78,7 +78,7 @@ const DEFAULT_SETTINGS = Object.freeze({
 const I18N = Object.freeze({
   de: {
     appTitle: "Zeilenrechner",
-    appSubtitle: "Kommentare, Variablen, Prozentrechnung und Einheitenumrechnung wie in Soulver.",
+    appSubtitle: "Rechner mit Unterstützung für Kommentare, Variablen und Einheitenumrechnung",
     paneInput: "Eingaben",
     paneOutput: "Ergebnisse",
     settingsHeading: "Einstellungen",
@@ -155,7 +155,7 @@ const I18N = Object.freeze({
   },
   en: {
     appTitle: "Line Calculator",
-    appSubtitle: "Comments, variables, percentages, and unit conversion like Soulver.",
+    appSubtitle: "Calculator with support for comments, variables, and unit conversion",
     paneInput: "Input",
     paneOutput: "Results",
     settingsHeading: "Settings",
