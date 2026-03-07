@@ -1674,6 +1674,10 @@ function maybeStripLabel(line) {
   if (line.includes("?")) {
     return line;
   }
+  // Bereichsreferenzen wie "@1:@4" dürfen ebenfalls nicht als Label-Syntax gelten.
+  if (/@\d+\s*:\s*@\d+/u.test(line)) {
+    return line;
+  }
 
   const match = line.match(/^([^:]+):\s*(.+)$/u);
   if (!match) {
