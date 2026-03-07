@@ -457,7 +457,7 @@ const wordOperators = new Set(["in", "to", "as", "zu", "als", "of", "von", "on",
 const operatorWordTestRegex = /^(?:in|to|as|zu|als|of|von|on|off|plus|minus|mal|min|max)$/iu;
 const numberTokenRegex = /^(?:\d[\d.,']*|[.,]\d+)%?$/u;
 const booleanTokenRegex = /^(?:true|false|wahr|falsch)$/iu;
-const highlightTokenRegex = /(>=|<=|==|!=|[+\-*/^()<>=%;,]|@\d+|\b(?:in|to|as|zu|als|of|von|on|off|plus|minus|mal|min|max)\b|\b(?:true|false|wahr|falsch)\b|(?:\d[\d.,']*|[.,]\d+)%?)/giu;
+const highlightTokenRegex = /(>=|<=|==|!=|[+\-*/^()<>=%;,]|@\d+|\b(?:in|to|as|zu|als|of|von|on|off|plus|minus|mal|min|max)\b|\b(?:true|false|wahr|falsch)\b|(?:\d[\d.,']*|[.,]\d+)%?|[€$£])/giu;
 
 let lastEvaluation = { lineValues: [] };
 let appSettings = loadPersistedSettings();
@@ -1798,6 +1798,9 @@ function classifyHighlightToken(token) {
   if (token.startsWith("@")) {
     return "ref";
   }
+  if (/^[€$£]$/u.test(token)) {
+    return "number";
+  }
   if (numberTokenRegex.test(token)) {
     return "number";
   }
@@ -1981,14 +1984,17 @@ function buildMathJsScope(context, placeholders) {
   const scope = {};
 
   for (const [name, quantity] of placeholders.entries()) {
-    if (!quantity || quantity.unit) {
+    if (!quantity || quantity.unit || quantity.isPercent) {
       return null;
     }
     scope[name.toLowerCase()] = quantity.value;
   }
 
   for (const [normalizedName, variable] of context.variables.entries()) {
-    if (!variable || !variable.quantity || variable.quantity.unit) {
+    if (!variable || !variable.quantity) {
+      continue;
+    }
+    if (variable.quantity.unit || variable.quantity.isPercent) {
       continue;
     }
     scope[normalizedName] = variable.quantity.value;
@@ -1998,7 +2004,7 @@ function buildMathJsScope(context, placeholders) {
     }
   }
 
-  if (context.lastValue && !context.lastValue.unit) {
+  if (context.lastValue && !context.lastValue.unit && !context.lastValue.isPercent) {
     scope.ans = context.lastValue.value;
     scope.last = context.lastValue.value;
   }
