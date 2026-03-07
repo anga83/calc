@@ -457,7 +457,7 @@ const wordOperators = new Set(["in", "to", "as", "zu", "als", "of", "von", "on",
 const operatorWordTestRegex = /^(?:in|to|as|zu|als|of|von|on|off|plus|minus|mal|min|max)$/iu;
 const numberTokenRegex = /^(?:\d[\d.,']*|[.,]\d+)%?$/u;
 const booleanTokenRegex = /^(?:true|false|wahr|falsch)$/iu;
-const highlightTokenRegex = /(>=|<=|==|!=|[+\-*/^()<>=%;,]|@\d+|\b(?:in|to|as|zu|als|of|von|on|off|plus|minus|mal|min|max)\b|\b(?:true|false|wahr|falsch)\b|(?:\d[\d.,']*|[.,]\d+)%?|[€$£])/giu;
+const highlightTokenRegex = /(>=|<=|==|!=|[+\-*/^()<>=%;,?:]|@\d+|\b(?:in|to|as|zu|als|of|von|on|off|plus|minus|mal|min|max)\b|\b(?:true|false|wahr|falsch)\b|(?:\d[\d.,']*|[.,]\d+)%?|[€$£])/giu;
 
 let lastEvaluation = { lineValues: [] };
 let appSettings = loadPersistedSettings();
@@ -1670,6 +1670,11 @@ function expandUnitShorthand(line) {
 }
 
 function maybeStripLabel(line) {
+  // Ternary-Ausdrücke dürfen nicht als "Label: Ausdruck" fehlinterpretiert werden.
+  if (line.includes("?")) {
+    return line;
+  }
+
   const match = line.match(/^([^:]+):\s*(.+)$/u);
   if (!match) {
     return line;
@@ -1678,6 +1683,75 @@ function maybeStripLabel(line) {
     return line;
   }
   return match[2];
+}
+
+function splitTopLevelTernary(expression) {
+  let depth = 0;
+  let questionIndex = -1;
+
+  for (let i = 0; i < expression.length; i += 1) {
+    const char = expression[i];
+    if (char === "(") {
+      depth += 1;
+      continue;
+    }
+    if (char === ")") {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+    if (char === "?" && depth === 0) {
+      questionIndex = i;
+      break;
+    }
+  }
+
+  if (questionIndex === -1) {
+    return null;
+  }
+
+  depth = 0;
+  let nestedQuestions = 0;
+  let colonIndex = -1;
+
+  for (let i = questionIndex + 1; i < expression.length; i += 1) {
+    const char = expression[i];
+    if (char === "(") {
+      depth += 1;
+      continue;
+    }
+    if (char === ")") {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+    if (depth !== 0) {
+      continue;
+    }
+    if (char === "?") {
+      nestedQuestions += 1;
+      continue;
+    }
+    if (char === ":") {
+      if (nestedQuestions === 0) {
+        colonIndex = i;
+        break;
+      }
+      nestedQuestions -= 1;
+    }
+  }
+
+  if (colonIndex === -1) {
+    throw new Error("Ternary-Ausdruck unvollständig (':' fehlt)");
+  }
+
+  const condition = expression.slice(0, questionIndex).trim();
+  const whenTrue = expression.slice(questionIndex + 1, colonIndex).trim();
+  const whenFalse = expression.slice(colonIndex + 1).trim();
+
+  if (!condition || !whenTrue || !whenFalse) {
+    throw new Error("Ternary-Ausdruck unvollständig");
+  }
+
+  return { condition, whenTrue, whenFalse };
 }
 
 function getDisplayFractionDigits() {
@@ -1807,7 +1881,7 @@ function classifyHighlightToken(token) {
   if (booleanTokenRegex.test(token)) {
     return "boolean";
   }
-  if (operatorWordTestRegex.test(token) || /^(?:>=|<=|==|!=|[+\-*/^()<>=%;,])$/u.test(token)) {
+  if (operatorWordTestRegex.test(token) || /^(?:>=|<=|==|!=|[+\-*/^()<>=%;,?:])$/u.test(token)) {
     return "operator";
   }
   return "plain";
@@ -2090,6 +2164,13 @@ function evaluateExpressionWithMathJs(preprocessed, context) {
 }
 
 function evaluateExpression(expression, context) {
+  const ternary = splitTopLevelTernary(expression);
+  if (ternary) {
+    const conditionResult = evaluateExpression(ternary.condition, context);
+    const conditionValue = toNumericValue(toArithmeticQuantity(conditionResult));
+    return evaluateExpression(conditionValue !== 0 ? ternary.whenTrue : ternary.whenFalse, context);
+  }
+
   const preprocessed = preprocessExpression(expression, context.variables, context.lineValues);
 
   if (shouldTryMathJs(preprocessed)) {
