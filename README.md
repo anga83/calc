@@ -1,7 +1,7 @@
 # Zeilenrechner (Soulver-ähnliche Webapp)
 
 ## 1. Beschreibung der Anwendung
-Diese Anwendung ist ein zeilenbasierter Rechner im Stil von Soulver: links stehen Eingaben, rechts erscheinen die Ergebnisse pro Zeile in Echtzeit. Sie unterstützt Kommentare, Variablen, Referenzen, Prozentrechnung, Vergleichsoperatoren, Einheitenumrechnung und Excel-ähnliche Funktionen.
+Diese Anwendung ist ein zeilenbasierter Rechner im Stil von Soulver: links stehen Eingaben, rechts erscheinen die Ergebnisse pro Zeile in Echtzeit. Sie unterstützt Kommentare, Variablen, Referenzen, Prozentrechnung, Vergleichsoperatoren, Einheitenumrechnung, Datums-/Zeitrechnung und Excel-ähnliche Funktionen.
 
 Der Rechner ist auf produktives Arbeiten mit Zwischenschritten ausgelegt: Eingaben bleiben editierbar, Ergebnisse sind direkt wiederverwendbar, Einstellungen werden gespeichert und Exporte stehen in mehreren Formaten zur Verfügung.
 
@@ -30,12 +30,19 @@ Der Rechner ist auf produktives Arbeiten mit Zwischenschritten ausgelegt: Eingab
   - Unterstützte Dimensionen: Länge, Masse, Zeit, Volumen, Fläche, Geschwindigkeit, Temperatur, Währung
 - Trailing `=` wird ignoriert (`1 + 2 =` ist gültig).
 - `Tab` im Eingabefeld fügt 4 Leerzeichen ein.
+- Datums-/Zeitrechnung:
+  - Schlüsselwörter: `heute`/`today`, `jetzt`/`now`, `morgen`/`tomorrow`, `gestern`/`yesterday`
+  - Datumsarithmetik: `heute + 14 tage`, `today + 2 wk`
+  - Datumsdifferenz: `2026-03-15 - 2026-03-01`
+  - Datumsformate: `YYYY-MM-DD`, `DD.MM.YYYY`, `DD. MMMM YYYY` (z. B. `1. März 2026`)
 
 ### Funktionen (inkl. Excel-ähnlich)
 - `min(...)`, `max(...)`
 - `SUMME(...)` / `SUM(...)`
 - `DURCHSCHNITT(...)` / `MITTELWERT(...)` / `AVG(...)` / `AVERAGE(...)`
 - `ANZAHL(...)` / `COUNT(...)`
+- `TAGE BIS(...)` / `DAYS UNTIL(...)`
+- `TAGE ZWISCHEN(...; ...)` / `DAYS BETWEEN(..., ...)`
 - Bereiche über Zeilenreferenzen:
   - `SUMME(@1:@4)` summiert Zeilen 1–4
   - Leere Zeilen und Kommentarzeilen werden dabei übersprungen
@@ -58,6 +65,8 @@ Der Rechner ist auf produktives Arbeiten mit Zwischenschritten ausgelegt: Eingab
 - `Fixe Nachkommastellen` (Standard: aus)
 - `Ganzzahlen ohne Nachkommastellen`
 - `Syntax-Highlighting`
+  - inkl. Hervorhebung für Zeitoperatoren (`tage zwischen`, `days between`, `tage bis`, `days until`)
+  - inkl. Hervorhebung für Datumsangaben (`2026-03-01`, `01.03.2026`, `1. März 2026`)
 - `Zeilennummern` (Input/Ergebnisse + PDF, nicht Markdown)
 - `Automatischer Zeilenumbruch`
 - `Sprache` (`Browser-Standard`, `Deutsch`, `English`)
@@ -70,7 +79,8 @@ Der Rechner ist auf produktives Arbeiten mit Zwischenschritten ausgelegt: Eingab
   - Funktionsübersicht
   - Umrechnungsübersicht
   - Link auf math.js-Syntax: <https://mathjs.org/docs/expressions/syntax.html>
-  - Demo-Button zum Laden von Beispielzeilen
+  - `Demo`-Button für allgemeine Beispiele
+  - `Zeit-Demo`/`Time Demo` für Zeit- und Datumsbeispiele (sprachabhängig)
 - Download-Chip mit Export-Popover.
 - Settings-Chip mit gruppierten Einstellungsblöcken.
 - Fullsize-Ansicht:
@@ -113,14 +123,14 @@ Der Rechner ist auf produktives Arbeiten mit Zwischenschritten ausgelegt: Eingab
 - `styles.css`
   - Layout, responsives Verhalten, Theme, Zeilennummern-/Wrap-/Fullscreen-Styling
 - `app.js`
-  - Parser, Evaluator, Variablen-/Referenzlogik, Funktionen, Umrechnungen, i18n, Einstellungen, Persistenz, Exporte
+  - Parser, Evaluator, Variablen-/Referenzlogik, Funktionen, Umrechnungen, Datums-/Zeitlogik, i18n, Einstellungen, Persistenz, Exporte
 - `manifest.webmanifest`, `sw.js`, `icons/*`
   - PWA-Metadaten, Caching, App-Icons
 
 ### Parser-/Evaluator-Konzept
 - Eigener Tokenizer + Parser mit Operator-Prioritäten.
 - Verarbeitet natürliche Operatorwörter (z. B. `von`, `zu`, `als`) zusätzlich zu Symboloperatoren.
-- Führt Variablenauflösung, Zeilenreferenzen, Prozentlogik und Einheitenlogik in einer Pipeline zusammen.
+- Führt Variablenauflösung, Zeilenreferenzen, Prozentlogik, Einheitenlogik und Datums-/Zeitlogik in einer Pipeline zusammen.
 - Optionaler math.js-Pfad für komplexere Ausdrücke, mit Fallback auf den internen Evaluator.
 
 ### Export-Implementierung
@@ -144,6 +154,10 @@ Der Rechner ist auf produktives Arbeiten mit Zwischenschritten ausgelegt: Eingab
   - Case-insensitive
   - Mit/ohne `=`
   - Bereichsreferenzen `@x:@y` müssen leere und Kommentarzeilen überspringen
+- Datums-/Zeitfunktionen:
+  - `tage bis`/`days until` und `tage zwischen`/`days between` unterstützen
+  - Datumsformate `YYYY-MM-DD`, `DD.MM.YYYY`, `DD. MMMM YYYY`
+  - Datumswerte in Highlighting und Anzeige konsistent behandeln
 - UI-Details, die nicht regressieren dürfen:
   - 70/30-Aufteilung Input/Ergebnis
   - saubere Zeilennummern-Ausrichtung bei an/aus
@@ -156,6 +170,9 @@ Der Rechner ist auf produktives Arbeiten mit Zwischenschritten ausgelegt: Eingab
   - `zeilenrechner:last-sheet`
   - `zeilenrechner:view-mode`
   - `zeilenrechner:settings`
+- Test/CI:
+  - Regressionstest: `./scripts/test-regression.sh`
+  - GitHub Action: `.github/workflows/regression-tests.yml`
 
 ## 5. Verwendetes Tool und LLM
 - Tool: Codex (Desktop-Agent)
