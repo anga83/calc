@@ -449,3 +449,46 @@ test('Math.js aktiviert: komplexer Ausdruck und Fallback bei Prozent', () => {
   // Prozent soll via Parser korrekt als Prozentabzug behandelt werden.
   assertAlmostEqual(rowResult(sheet, 4).value.value, 47.992, 1e-10);
 });
+
+test('Zeitrechnung: heute/today plus/minus Dauer', () => {
+  const evaluateSheet = loadEvaluateSheet();
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const sheet = evaluateSheet([
+    'heute + 14 tage',
+    'today + 2 wk',
+    'heute - 1 d',
+  ].join('\n'));
+
+  const plus14 = new Date(todayStart.getTime() + 14 * 24 * 60 * 60 * 1000);
+  const plus2wk = new Date(todayStart.getTime() + 14 * 24 * 60 * 60 * 1000);
+  const minus1 = new Date(todayStart.getTime() - 1 * 24 * 60 * 60 * 1000);
+
+  const fmt = (d) => `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+  assert.equal(rowResult(sheet, 1).display, fmt(plus14));
+  assert.equal(rowResult(sheet, 2).display, fmt(plus2wk));
+  assert.equal(rowResult(sheet, 3).display, fmt(minus1));
+});
+
+test('Datumsfunktionen: Tage bis/zwischen und Days until/between', () => {
+  const evaluateSheet = loadEvaluateSheet();
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const target = new Date(todayStart.getTime() + 10 * 24 * 60 * 60 * 1000);
+  const dateIso = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`;
+
+  const sheet = evaluateSheet([
+    `tage bis(${dateIso})`,
+    `days until(${dateIso})`,
+    'tage zwischen(2026-03-01; 2026-03-15)',
+    'days between(01.03.2026, 15.03.2026)',
+    'tage zwischen(1. März 2026; 15. März 2026)',
+  ].join('\n'));
+
+  assert.equal(rowResult(sheet, 1).value.value, 10);
+  assert.equal(rowResult(sheet, 2).value.value, 10);
+  assert.equal(rowResult(sheet, 3).value.value, 14);
+  assert.equal(rowResult(sheet, 4).value.value, 14);
+  assert.equal(rowResult(sheet, 5).value.value, 14);
+});

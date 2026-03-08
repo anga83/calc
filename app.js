@@ -60,6 +60,7 @@ const MATHJS_CDN_URL = "https://cdn.jsdelivr.net/npm/mathjs@13.2.2/lib/browser/m
 const DECIMAL_SEPARATOR_OPTIONS = [",", "."];
 const THOUSANDS_SEPARATOR_OPTIONS = [".", ",", "'", ""];
 let currentLanguage = detectLanguage();
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const DEFAULT_SETTINGS = Object.freeze({
   useMathJs: false,
@@ -103,7 +104,7 @@ const I18N = Object.freeze({
     separatorValid: "Einstellungen für Zahlenformat sind gültig.",
     hintComments: "<strong>Kommentare:</strong> Zeilen mit <code>#</code> oder <code>//</code>",
     hintVariables: "<strong>Variablen:</strong> <code>name = ...</code>, <code>name += ...</code>, <code>name -= ...</code>",
-    hintConversions: "<strong>Umrechnung:</strong> <code>10 km in m</code>, <code>32 °F as °C</code>",
+    hintConversions: "<strong>Umrechnung:</strong> <code>10 km in m</code>, <code>32 °F als °C</code>, <code>4 h in min</code>",
     helpSyntaxHeading: "Syntax",
     helpFunctionsHeading: "Funktionen",
     helpConversionsHeading: "Unterstützte Umrechnungen",
@@ -112,7 +113,7 @@ const I18N = Object.freeze({
     helpSyntax2: "Text-Operatoren: <code>plus</code>, <code>minus</code>, <code>mal</code>, <code>of</code>, <code>von</code>, <code>on</code>, <code>off</code>",
     helpSyntax3: "Umrechnung: <code>in</code>, <code>to</code>/<code>zu</code>, <code>as</code>/<code>als</code>, Kurzform: <code>km m</code>",
     helpSyntax4: "Zuweisung: <code>=</code>, <code>+=</code>, <code>-=</code>",
-    helpSyntax5: "Referenzen: <code>@3</code> (Zeile 3), <code>ans</code>/<code>last</code>",
+    helpSyntax5: "Referenzen: <code>@3</code> (Zeile 3), <code>ans</code>/<code>last</code>, Datum: <code>heute</code>/<code>today</code>",
     helpSyntax6: "Vergleiche: <code>&gt;</code>, <code>&gt;=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>==</code>, <code>!=</code>",
     helpSyntax7: "Kommentare: Zeilen mit <code>#</code> oder <code>//</code>",
     helpSyntax8: "Ein trailing <code>=</code> wird ignoriert: <code>1 + 2 =</code>",
@@ -120,8 +121,9 @@ const I18N = Object.freeze({
     helpFunctions1: "<code>min(...)</code>, <code>max(...)</code> (z. B. <code>min(3;5)</code>)",
     helpFunctions2: "<code>Summe(...)</code>/<code>SUM(...)</code> (Excel-ähnlich, z. B. <code>Summe(wert1, wert2)</code>)",
     helpFunctions3: "Bereiche: <code>Summe(@1:@4)</code> summiert Zeilen 1 bis 4 (leere/Kommentarzeilen werden übersprungen)",
-    helpFunctions4: "<code>Durchschnitt(...)</code>/<code>Mittelwert(...)</code>/<code>AVG(...)</code>, <code>Anzahl(...)</code>/<code>COUNT(...)</code>",
-    helpFunctions5: "Funktionsnamen sind case-insensitiv und funktionieren mit oder ohne führendes <code>=</code>.",
+    helpFunctions4: "Statistikfunktionen: <code>Durchschnitt(...)</code>/<wbr><code>Mittelwert(...)</code>/<wbr><code>AVG(...)</code>, <code>Anzahl(...)</code>/<wbr><code>COUNT(...)</code>",
+    helpFunctions5: "Zeitfunktionen: <code>Tage bis(...)</code>/<code>Days until(...)</code>, <code>Tage&nbsp;zwischen(...; ...)</code>/<code>Days between(..., ...)</code>",
+    helpFunctions6: "Funktionsnamen sind case-insensitiv und funktionieren mit oder ohne führendes <code>=</code>.",
     helpLinkLine: "Weiterführende Syntax: <a id=\"help-link-mathjs\" href=\"https://mathjs.org/docs/expressions/syntax.html\" target=\"_blank\" rel=\"noopener noreferrer\">mathjs.org/docs/expressions/syntax.html</a>",
     helpConv1: "Länge: <code>mm</code>, <code>cm</code>, <code>m</code>, <code>km</code>, <code>in</code>, <code>ft</code>, <code>yd</code>, <code>mi</code>",
     helpConv2: "Masse: <code>mg</code>, <code>g</code>, <code>kg</code>, <code>t</code>, <code>oz</code>, <code>lb</code>",
@@ -180,7 +182,7 @@ const I18N = Object.freeze({
     separatorValid: "Number format settings are valid.",
     hintComments: "<strong>Comments:</strong> Lines starting with <code>#</code> or <code>//</code>",
     hintVariables: "<strong>Variables:</strong> <code>name = ...</code>, <code>name += ...</code>, <code>name -= ...</code>",
-    hintConversions: "<strong>Conversion:</strong> <code>10 km in m</code>, <code>32 °F as °C</code>",
+    hintConversions: "<strong>Conversion:</strong> <code>10 km in m</code>, <code>32 °F as °C</code>, <code>4 h in min</code>",
     helpSyntaxHeading: "Syntax",
     helpFunctionsHeading: "Functions",
     helpConversionsHeading: "Supported conversions",
@@ -189,7 +191,7 @@ const I18N = Object.freeze({
     helpSyntax2: "Word operators: <code>plus</code>, <code>minus</code>, <code>mal</code>, <code>of</code>, <code>von</code>, <code>on</code>, <code>off</code>",
     helpSyntax3: "Conversion: <code>in</code>, <code>to</code>/<code>zu</code>, <code>as</code>/<code>als</code>, shorthand: <code>km m</code>",
     helpSyntax4: "Assignment: <code>=</code>, <code>+=</code>, <code>-=</code>",
-    helpSyntax5: "References: <code>@3</code> (line 3), <code>ans</code>/<code>last</code>",
+    helpSyntax5: "References: <code>@3</code> (line 3), <code>ans</code>/<code>last</code>, date: <code>today</code>/<code>heute</code>",
     helpSyntax6: "Comparisons: <code>&gt;</code>, <code>&gt;=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>==</code>, <code>!=</code>",
     helpSyntax7: "Comments: lines starting with <code>#</code> or <code>//</code>",
     helpSyntax8: "A trailing <code>=</code> is ignored: <code>1 + 2 =</code>",
@@ -197,8 +199,9 @@ const I18N = Object.freeze({
     helpFunctions1: "<code>min(...)</code>, <code>max(...)</code> (e.g. <code>min(3;5)</code>)",
     helpFunctions2: "<code>SUM(...)</code>/<code>Summe(...)</code> (Excel-like, e.g. <code>SUM(value1, value2)</code>)",
     helpFunctions3: "Ranges: <code>SUM(@1:@4)</code> sums lines 1 to 4 (empty/comment lines are skipped)",
-    helpFunctions4: "<code>AVG(...)</code>/<code>Durchschnitt(...)</code>/<code>Mittelwert(...)</code>, <code>COUNT(...)</code>/<code>Anzahl(...)</code>",
-    helpFunctions5: "Function names are case-insensitive and work with or without a leading <code>=</code>.",
+    helpFunctions4: "Statistics functions: <code>AVG(...)</code>/<wbr><code>Durchschnitt(...)</code>/<wbr><code>Mittelwert(...)</code>, <code>COUNT(...)</code>/<wbr><code>Anzahl(...)</code>",
+    helpFunctions5: "Time functions: <code>Days until(...)</code>/<code>Tage bis(...)</code>, <code>Days between(..., ...)</code>/<code>Tage&nbsp;zwischen(...; ...)</code>",
+    helpFunctions6: "Function names are case-insensitive and work with or without a leading <code>=</code>.",
     helpLinkLine: "Extended syntax: <a id=\"help-link-mathjs\" href=\"https://mathjs.org/docs/expressions/syntax.html\" target=\"_blank\" rel=\"noopener noreferrer\">mathjs.org/docs/expressions/syntax.html</a>",
     helpConv1: "Length: <code>mm</code>, <code>cm</code>, <code>m</code>, <code>km</code>, <code>in</code>, <code>ft</code>, <code>yd</code>, <code>mi</code>",
     helpConv2: "Mass: <code>mg</code>, <code>g</code>, <code>kg</code>, <code>t</code>, <code>oz</code>, <code>lb</code>",
@@ -367,6 +370,7 @@ const unitAliases = new Map([
   ["tage", "d"],
   ["day", "d"],
   ["days", "d"],
+  ["d", "d"],
   ["woche", "wk"],
   ["wochen", "wk"],
   ["week", "wk"],
@@ -482,6 +486,86 @@ function affineUnit(dimension, symbol, toBase, fromBase) {
   };
 }
 
+const monthNameToNumber = new Map([
+  ["januar", 1], ["january", 1],
+  ["februar", 2], ["february", 2],
+  ["märz", 3], ["maerz", 3], ["march", 3],
+  ["april", 4],
+  ["mai", 5], ["may", 5],
+  ["juni", 6], ["june", 6],
+  ["juli", 7], ["july", 7],
+  ["august", 8],
+  ["september", 9],
+  ["oktober", 10], ["october", 10],
+  ["november", 11],
+  ["dezember", 12], ["december", 12],
+]);
+
+function startOfLocalDayMs(source = new Date()) {
+  const date = new Date(source);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+function toDayStartDateMs(dateMs) {
+  return startOfLocalDayMs(new Date(dateMs));
+}
+
+function parseDateComponents(year, month, day) {
+  const y = Number(year);
+  const m = Number(month);
+  const d = Number(day);
+  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) {
+    return null;
+  }
+  if (m < 1 || m > 12 || d < 1 || d > 31) {
+    return null;
+  }
+  const date = new Date(y, m - 1, d);
+  if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) {
+    return null;
+  }
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+function parseDateLiteralToMs(token) {
+  const trimmed = token.trim();
+
+  let match = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/u);
+  if (match) {
+    return parseDateComponents(match[1], match[2], match[3]);
+  }
+
+  match = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/u);
+  if (match) {
+    return parseDateComponents(match[3], match[2], match[1]);
+  }
+
+  match = trimmed.match(/^(\d{1,2})\.\s*([\p{L}]+)\s+(\d{4})$/u);
+  if (match) {
+    const monthRaw = match[2].toLowerCase();
+    const month = monthNameToNumber.get(monthRaw);
+    if (!month) {
+      return null;
+    }
+    return parseDateComponents(match[3], month, match[1]);
+  }
+
+  return null;
+}
+
+function formatDateForDisplay(dateMs) {
+  const date = new Date(dateMs);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  if (currentLanguage === "de") {
+    return `${day}.${month}.${year}`;
+  }
+  return `${year}-${month}-${day}`;
+}
+
 function detectLanguage() {
   if (typeof navigator === "undefined" || !navigator.language) {
     return "de";
@@ -526,7 +610,13 @@ function localizeErrorMessage(message) {
     [/^Wert hat keine Einheit$/u, "Value has no unit"],
     [/^Umrechnung nur für Werte mit Einheit möglich$/u, "Conversion is only possible for values with units"],
     [/^Unbekannte Funktion: (.+)$/u, "Unknown function: $1"],
-    [/^Ungültige Zeilenreferenz: (.+)$/u, "Invalid line reference: $1"]
+    [/^Ungültige Zeilenreferenz: (.+)$/u, "Invalid line reference: $1"],
+    [/^Ternary-Ausdruck unvollständig \(':' fehlt\)$/u, "Ternary expression incomplete (missing ':')"],
+    [/^Ternary-Ausdruck unvollständig$/u, "Ternary expression incomplete"],
+    [/^Tage zwischen benötigt genau 2 Argumente$/u, "Days between requires exactly 2 arguments"],
+    [/^Tage bis benötigt genau 1 Argument$/u, "Days until requires exactly 1 argument"],
+    [/^Tage zwischen erwartet Datumswerte$/u, "Days between expects date values"],
+    [/^Tage bis erwartet Datumswerte$/u, "Days until expects date values"]
   ];
 
   for (const [pattern, replacement] of rules) {
@@ -606,6 +696,7 @@ function applyLocalization() {
   setHtmlById("help-functions-3", t("helpFunctions3"));
   setHtmlById("help-functions-4", t("helpFunctions4"));
   setHtmlById("help-functions-5", t("helpFunctions5"));
+  setHtmlById("help-functions-6", t("helpFunctions6"));
   setHtmlById("help-link-line", t("helpLinkLine"));
   setHtmlById("help-conv-1", t("helpConv1"));
   setHtmlById("help-conv-2", t("helpConv2"));
@@ -1085,6 +1176,8 @@ function makeQuantity(value, options = {}) {
     dimension: options.dimension || null,
     isPercent: options.isPercent || false,
     isBoolean: options.isBoolean || false,
+    isDate: options.isDate || false,
+    dateMs: typeof options.dateMs === "number" ? options.dateMs : null,
   };
 }
 
@@ -1095,6 +1188,8 @@ function cloneQuantity(quantity) {
     dimension: quantity.dimension,
     isPercent: quantity.isPercent,
     isBoolean: quantity.isBoolean || false,
+    isDate: quantity.isDate || false,
+    dateMs: typeof quantity.dateMs === "number" ? quantity.dateMs : null,
   };
 }
 
@@ -1104,6 +1199,23 @@ function resolveIdentifier(name, context) {
 
   if (context.placeholders.has(name)) {
     return cloneQuantity(context.placeholders.get(name));
+  }
+
+  if (lowered === "today" || lowered === "heute") {
+    const dateMs = startOfLocalDayMs();
+    return makeQuantity(dateMs, { isDate: true, dateMs });
+  }
+  if (lowered === "now" || lowered === "jetzt") {
+    const dateMs = Date.now();
+    return makeQuantity(dateMs, { isDate: true, dateMs });
+  }
+  if (lowered === "tomorrow" || lowered === "morgen") {
+    const dateMs = startOfLocalDayMs() + MS_PER_DAY;
+    return makeQuantity(dateMs, { isDate: true, dateMs });
+  }
+  if (lowered === "yesterday" || lowered === "gestern") {
+    const dateMs = startOfLocalDayMs() - MS_PER_DAY;
+    return makeQuantity(dateMs, { isDate: true, dateMs });
   }
 
   if (Object.prototype.hasOwnProperty.call(constants, lowered)) {
@@ -1158,6 +1270,9 @@ function convertToUnit(quantity, targetUnitKey) {
 }
 
 function toNumericValue(quantity) {
+  if (quantity.isDate) {
+    throw new Error("Datumswerte können hier nicht direkt numerisch verwendet werden");
+  }
   if (quantity.isBoolean) {
     return quantity.value ? 1 : 0;
   }
@@ -1165,6 +1280,17 @@ function toNumericValue(quantity) {
     throw new Error("Ungültiger numerischer Wert");
   }
   return quantity.value;
+}
+
+function isTimeQuantity(quantity) {
+  return Boolean(quantity && quantity.unit && unitDefs[quantity.unit] && unitDefs[quantity.unit].dimension === "time");
+}
+
+function timeQuantityToMs(quantity) {
+  if (!isTimeQuantity(quantity)) {
+    throw new Error("Zeitwert mit Einheit erwartet");
+  }
+  return toBase(quantity) * 1000;
 }
 
 function toArithmeticQuantity(quantity) {
@@ -1238,6 +1364,18 @@ function ensureCompatibleForSum(left, right) {
 }
 
 function applyPlus(left, right) {
+  if (left.isDate || right.isDate) {
+    if (left.isDate && isTimeQuantity(right)) {
+      const dateMs = left.dateMs + timeQuantityToMs(right);
+      return makeQuantity(dateMs, { isDate: true, dateMs });
+    }
+    if (right.isDate && isTimeQuantity(left)) {
+      const dateMs = right.dateMs + timeQuantityToMs(left);
+      return makeQuantity(dateMs, { isDate: true, dateMs });
+    }
+    throw new Error("Datumsaddition nur mit Zeitwerten möglich");
+  }
+
   const leftArithmetic = toArithmeticQuantity(left);
   const rightArithmetic = toArithmeticQuantity(right);
 
@@ -1255,6 +1393,17 @@ function applyPlus(left, right) {
 }
 
 function applyMinus(left, right) {
+  if (left.isDate || right.isDate) {
+    if (left.isDate && right.isDate) {
+      return makeQuantity((left.dateMs - right.dateMs) / MS_PER_DAY);
+    }
+    if (left.isDate && isTimeQuantity(right)) {
+      const dateMs = left.dateMs - timeQuantityToMs(right);
+      return makeQuantity(dateMs, { isDate: true, dateMs });
+    }
+    throw new Error("Datumssubtraktion nur mit Datum oder Zeitwert möglich");
+  }
+
   const leftArithmetic = toArithmeticQuantity(left);
   const rightArithmetic = toArithmeticQuantity(right);
 
@@ -1272,6 +1421,10 @@ function applyMinus(left, right) {
 }
 
 function applyMultiply(left, right) {
+  if (left.isDate || right.isDate) {
+    throw new Error("Multiplikation mit Datumswerten ist nicht unterstützt");
+  }
+
   const leftArithmetic = toArithmeticQuantity(left);
   const rightArithmetic = toArithmeticQuantity(right);
 
@@ -1291,6 +1444,10 @@ function applyMultiply(left, right) {
 }
 
 function applyDivision(left, right) {
+  if (left.isDate || right.isDate) {
+    throw new Error("Division mit Datumswerten ist nicht unterstützt");
+  }
+
   const leftArithmetic = toArithmeticQuantity(left);
   const rightArithmetic = toArithmeticQuantity(right);
 
@@ -1318,6 +1475,10 @@ function applyDivision(left, right) {
 }
 
 function applyPower(left, right) {
+  if (left.isDate || right.isDate) {
+    throw new Error("Potenzen mit Datumswerten sind nicht unterstützt");
+  }
+
   const leftArithmetic = toArithmeticQuantity(left);
   const rightArithmetic = toArithmeticQuantity(right);
 
@@ -1343,6 +1504,38 @@ function applyConversion(left, right) {
 }
 
 function applyComparison(left, right, operator) {
+  if (left.isDate || right.isDate) {
+    if (!left.isDate || !right.isDate) {
+      throw new Error("Vergleich zwischen Datum und Zahl ist nicht möglich");
+    }
+    const leftValue = left.dateMs;
+    const rightValue = right.dateMs;
+    let result = false;
+    switch (operator) {
+      case ">":
+        result = leftValue > rightValue;
+        break;
+      case ">=":
+        result = leftValue >= rightValue;
+        break;
+      case "<":
+        result = leftValue < rightValue;
+        break;
+      case "<=":
+        result = leftValue <= rightValue;
+        break;
+      case "==":
+        result = leftValue === rightValue;
+        break;
+      case "!=":
+        result = leftValue !== rightValue;
+        break;
+      default:
+        throw new Error(`Vergleichsoperator nicht unterstützt: ${operator}`);
+    }
+    return makeQuantity(result ? 1 : 0, { isBoolean: true });
+  }
+
   const normalized = normalizeComparablePair(left, right);
   const leftValue = toNumericValue(normalized.left);
   const rightValue = toNumericValue(normalized.right);
@@ -1438,6 +1631,33 @@ function applyCountCall(args) {
   return makeQuantity(args.length);
 }
 
+function asDateQuantity(value, functionName) {
+  if (value && value.isDate) {
+    return value;
+  }
+  throw new Error(`${functionName} erwartet Datumswerte`);
+}
+
+function applyDaysBetweenCall(args) {
+  if (args.length !== 2) {
+    throw new Error("Tage zwischen benötigt genau 2 Argumente");
+  }
+  const first = asDateQuantity(args[0], "Tage zwischen");
+  const second = asDateQuantity(args[1], "Tage zwischen");
+  const diffDays = Math.abs(toDayStartDateMs(first.dateMs) - toDayStartDateMs(second.dateMs)) / MS_PER_DAY;
+  return makeQuantity(diffDays);
+}
+
+function applyDaysUntilCall(args) {
+  if (args.length !== 1) {
+    throw new Error("Tage bis benötigt genau 1 Argument");
+  }
+  const target = asDateQuantity(args[0], "Tage bis");
+  const todayMs = startOfLocalDayMs();
+  const diffDays = (toDayStartDateMs(target.dateMs) - todayMs) / MS_PER_DAY;
+  return makeQuantity(diffDays);
+}
+
 function evaluateAst(node, context) {
   if (node.type === "number") {
     return makeQuantity(node.value, { isPercent: node.isPercent });
@@ -1461,6 +1681,12 @@ function evaluateAst(node, context) {
     }
     if (functionName === "anzahl" || functionName === "count") {
       return applyCountCall(argValues);
+    }
+    if (functionName === "tagezwischen" || functionName === "daysbetween") {
+      return applyDaysBetweenCall(argValues);
+    }
+    if (functionName === "tagebis" || functionName === "daysuntil") {
+      return applyDaysUntilCall(argValues);
     }
     throw new Error(`Unbekannte Funktion: ${node.name}`);
   }
@@ -1524,6 +1750,10 @@ function preprocessExpression(expression, variables, lineValues) {
     .replace(/×/gu, "*")
     .replace(/÷/gu, "/")
     .replace(/[–—]/gu, "-")
+    .replace(/\b(?:tage|days)\s+zwischen\s*\(/giu, "tagezwischen(")
+    .replace(/\b(?:tage|days)\s+bis\s*\(/giu, "tagebis(")
+    .replace(/\b(?:days)\s+until\s*\(/giu, "daysuntil(")
+    .replace(/\b(?:days)\s+between\s*\(/giu, "daysbetween(")
     .replace(/\bprozent\b/giu, "%")
     .replace(/(\d[\d.,']*|[.,]\d+)\s*%/gu, "$1%");
 
@@ -1537,6 +1767,42 @@ function preprocessExpression(expression, variables, lineValues) {
 
   const placeholders = new Map();
   let placeholderIndex = 0;
+
+  const isoDateRegex = /\b(\d{4}-\d{1,2}-\d{1,2})\b/gu;
+  value = value.replace(isoDateRegex, (match) => {
+    const dateMs = parseDateLiteralToMs(match);
+    if (dateMs === null) {
+      return match;
+    }
+    const placeholder = `__date_${placeholderIndex}`;
+    placeholderIndex += 1;
+    placeholders.set(placeholder, makeQuantity(dateMs, { isDate: true, dateMs }));
+    return placeholder;
+  });
+
+  const dotDateRegex = /\b(\d{1,2}\.\d{1,2}\.\d{4})\b/gu;
+  value = value.replace(dotDateRegex, (match) => {
+    const dateMs = parseDateLiteralToMs(match);
+    if (dateMs === null) {
+      return match;
+    }
+    const placeholder = `__date_${placeholderIndex}`;
+    placeholderIndex += 1;
+    placeholders.set(placeholder, makeQuantity(dateMs, { isDate: true, dateMs }));
+    return placeholder;
+  });
+
+  const namedDateRegex = /\b(\d{1,2}\.\s*[\p{L}]+\s+\d{4})\b/gu;
+  value = value.replace(namedDateRegex, (match) => {
+    const dateMs = parseDateLiteralToMs(match);
+    if (dateMs === null) {
+      return match;
+    }
+    const placeholder = `__date_${placeholderIndex}`;
+    placeholderIndex += 1;
+    placeholders.set(placeholder, makeQuantity(dateMs, { isDate: true, dateMs }));
+    return placeholder;
+  });
 
   const multiWordVars = [...variables.values()]
     .map((entry) => entry.name)
@@ -1783,6 +2049,9 @@ function roundToDecimals(value, decimals) {
 }
 
 function quantizeQuantityForStorage(quantity) {
+  if (quantity.isDate) {
+    return cloneQuantity(quantity);
+  }
   if (appSettings.preciseIntermediates) {
     return cloneQuantity(quantity);
   }
@@ -1846,6 +2115,10 @@ function formatNumber(value, fractionDigits = getDisplayFractionDigits()) {
 }
 
 function formatQuantity(quantity) {
+  if (quantity.isDate) {
+    return formatDateForDisplay(quantity.dateMs);
+  }
+
   if (quantity.isBoolean) {
     return quantity.value ? "true" : "false";
   }
@@ -2062,7 +2335,7 @@ function buildMathJsScope(context, placeholders) {
   const scope = {};
 
   for (const [name, quantity] of placeholders.entries()) {
-    if (!quantity || quantity.unit || quantity.isPercent) {
+    if (!quantity || quantity.unit || quantity.isPercent || quantity.isDate) {
       return null;
     }
     scope[name.toLowerCase()] = quantity.value;
@@ -2072,7 +2345,7 @@ function buildMathJsScope(context, placeholders) {
     if (!variable || !variable.quantity) {
       continue;
     }
-    if (variable.quantity.unit || variable.quantity.isPercent) {
+    if (variable.quantity.unit || variable.quantity.isPercent || variable.quantity.isDate) {
       continue;
     }
     scope[normalizedName] = variable.quantity.value;
@@ -2082,7 +2355,7 @@ function buildMathJsScope(context, placeholders) {
     }
   }
 
-  if (context.lastValue && !context.lastValue.unit && !context.lastValue.isPercent) {
+  if (context.lastValue && !context.lastValue.unit && !context.lastValue.isPercent && !context.lastValue.isDate) {
     scope.ans = context.lastValue.value;
     scope.last = context.lastValue.value;
   }
