@@ -14,6 +14,7 @@ const downloadPopoverEl = document.getElementById("download-popover");
 const settingsChipEl = document.getElementById("settings-chip");
 const settingsPopoverEl = document.getElementById("settings-popover");
 const loadDemoBtnEl = document.getElementById("load-demo-btn");
+const loadTimeDemoBtnEl = document.getElementById("load-time-demo-btn");
 const exportPdfDividerBtnEl = document.getElementById("export-pdf-divider-btn");
 const exportPdfPlainBtnEl = document.getElementById("export-pdf-plain-btn");
 const exportMdBtnEl = document.getElementById("export-md-btn");
@@ -50,6 +51,32 @@ temperatur as °C
 essen = 22,40
 trinkgeld = 10%
 gesamt = essen + trinkgeld`;
+
+const TIME_DEMO_TEXT = `# Zeit- und Datumsbeispiele
+arbeitszeit = 4 h
+arbeitszeit in min
+90 min in h
+2 wk in d
+
+tage zwischen(2026-03-01; 2026-03-15)
+tage zwischen(1. März 2026; 15. März 2026)
+
+projektstart = heute
+abgabe = heute + 14 tage
+tage bis(abgabe)`;
+
+const TIME_DEMO_TEXT_EN = `# Time and date examples
+work = 4 h
+work in min
+90 min in h
+2 wk in d
+
+days between(2026-03-01, 2026-03-15)
+days between(1. March 2026, 15. March 2026)
+
+start = today
+due = today + 14 days
+days until(due)`;
 
 const STORAGE_KEY = "zeilenrechner:last-sheet";
 const VIEW_MODE_STORAGE_KEY = "zeilenrechner:view-mode";
@@ -140,6 +167,7 @@ const I18N = Object.freeze({
     exportJson: "JSON",
     exportYaml: "YAML",
     demoButton: "Demo",
+    timeDemoButton: "Zeit-Demo",
     mathJsStatusDisabled: "math.js ist deaktiviert.",
     mathJsStatusActive: "math.js ist aktiv.",
     mathJsStatusLoading: "math.js wird geladen ...",
@@ -218,6 +246,7 @@ const I18N = Object.freeze({
     exportJson: "JSON",
     exportYaml: "YAML",
     demoButton: "Demo",
+    timeDemoButton: "Time Demo",
     mathJsStatusDisabled: "math.js is disabled.",
     mathJsStatusActive: "math.js is active.",
     mathJsStatusLoading: "Loading math.js ...",
@@ -461,7 +490,7 @@ const wordOperators = new Set(["in", "to", "as", "zu", "als", "of", "von", "on",
 const operatorWordTestRegex = /^(?:in|to|as|zu|als|of|von|on|off|plus|minus|mal|min|max)$/iu;
 const numberTokenRegex = /^(?:\d[\d.,']*|[.,]\d+)%?$/u;
 const booleanTokenRegex = /^(?:true|false|wahr|falsch)$/iu;
-const highlightTokenRegex = /(>=|<=|==|!=|[+\-*/^()<>=%;,?:]|@\d+|\b(?:in|to|as|zu|als|of|von|on|off|plus|minus|mal|min|max)\b|\b(?:true|false|wahr|falsch)\b|(?:\d[\d.,']*|[.,]\d+)%?|[€$£])/giu;
+const highlightTokenRegex = /(\b(?:tage\s+zwischen|days\s+between|tage\s+bis|days\s+until)\b|>=|<=|==|!=|[+\-*/^()<>=%;,?:]|@\d+|\b(?:in|to|as|zu|als|of|von|on|off|plus|minus|mal|min|max)\b|\b(?:true|false|wahr|falsch)\b|\b(?:\d{4}-\d{1,2}-\d{1,2}|\d{1,2}\.\d{1,2}\.\d{4}|\d{1,2}\.\s*[\p{L}]+\s+\d{4})\b|(?:\d[\d.,']*|[.,]\d+)%?|[€$£])/giu;
 
 let lastEvaluation = { lineValues: [] };
 let appSettings = loadPersistedSettings();
@@ -713,6 +742,7 @@ function applyLocalization() {
   setTextById("export-json-btn", t("exportJson"));
   setTextById("export-yaml-btn", t("exportYaml"));
   setTextById("load-demo-btn", t("demoButton"));
+  setTextById("load-time-demo-btn", t("timeDemoButton"));
 
   if (settingDecimalSeparatorEl) {
     for (const option of settingDecimalSeparatorEl.options) {
@@ -2149,6 +2179,12 @@ function classifyHighlightToken(token) {
   if (token.startsWith("@")) {
     return "ref";
   }
+  if (/^(?:tage\s+zwischen|days\s+between|tage\s+bis|days\s+until)$/iu.test(token)) {
+    return "operator";
+  }
+  if (/^(?:\d{4}-\d{1,2}-\d{1,2}|\d{1,2}\.\d{1,2}\.\d{4}|\d{1,2}\.\s*[\p{L}]+\s+\d{4})$/iu.test(token)) {
+    return "date";
+  }
   if (/^[€$£]$/u.test(token)) {
     return "number";
   }
@@ -2999,6 +3035,8 @@ function colorForHighlightKind(kind) {
       return [0.48, 0.24, 0.69];
     case "ref":
       return [0.67, 0.36, 0.05];
+    case "date":
+      return [0.12, 0.5, 0.48];
     case "line-number":
       return [0.46, 0.53, 0.64];
     default:
@@ -3399,6 +3437,15 @@ if (settingsChipEl && settingsPopoverEl && typeof settingsChipEl.addEventListene
 if (loadDemoBtnEl && typeof loadDemoBtnEl.addEventListener === "function") {
   loadDemoBtnEl.addEventListener("click", () => {
     setInputAndRecalculate(INITIAL_TEXT);
+    toggleHelpPopover(false);
+    toggleDownloadPopover(false);
+    toggleSettingsPopover(false);
+  });
+}
+
+if (loadTimeDemoBtnEl && typeof loadTimeDemoBtnEl.addEventListener === "function") {
+  loadTimeDemoBtnEl.addEventListener("click", () => {
+    setInputAndRecalculate(currentLanguage === "de" ? TIME_DEMO_TEXT : TIME_DEMO_TEXT_EN);
     toggleHelpPopover(false);
     toggleDownloadPopover(false);
     toggleSettingsPopover(false);

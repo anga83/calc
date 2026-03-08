@@ -515,6 +515,10 @@ body {
   color: #1b7f4f;
 }
 
+.hl-date {
+  color: #177f7a;
+}
+
 .hl-boolean {
   color: #7b3ab3;
   font-weight: 600;

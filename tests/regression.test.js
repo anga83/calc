@@ -492,3 +492,23 @@ test('Datumsfunktionen: Tage bis/zwischen und Days until/between', () => {
   assert.equal(rowResult(sheet, 4).value.value, 14);
   assert.equal(rowResult(sheet, 5).value.value, 14);
 });
+
+test('Zeitumrechnung Varianten und Datumsdifferenz per Subtraktion', () => {
+  const evaluateSheet = loadEvaluateSheet();
+  const sheet = evaluateSheet([
+    '4 h in min',
+    '90 min in s',
+    '2 wk in d',
+    '2026-03-15 - 2026-03-01',
+    '15.03.2026 - 01.03.2026',
+  ].join('\n'));
+
+  assert.equal(rowResult(sheet, 1).value.value, 240);
+  assert.equal(rowResult(sheet, 1).value.unit, 'min');
+  assert.equal(rowResult(sheet, 2).value.value, 5400);
+  assert.equal(rowResult(sheet, 2).value.unit, 's');
+  assert.equal(rowResult(sheet, 3).value.value, 14);
+  assert.equal(rowResult(sheet, 3).value.unit, 'd');
+  assert.equal(rowResult(sheet, 4).value.value, 14);
+  assert.equal(rowResult(sheet, 5).value.value, 14);
+});
