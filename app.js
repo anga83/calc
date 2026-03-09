@@ -376,7 +376,7 @@ function renderFxInfoList() {
 
   fxInfoListEl.innerHTML = items.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
   if (fxInfoSourceEl) {
-    fxInfoSourceEl.hidden = !(appSettings && appSettings.useLiveFx && liveCurrencyRates);
+    fxInfoSourceEl.hidden = !(appSettings && appSettings.useLiveFx);
   }
 }
 

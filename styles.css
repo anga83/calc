@@ -212,10 +212,10 @@ body {
 }
 
 .info-icon-btn {
-  border: 1px solid #b7c9e2;
-  background: #eef4ff;
+  border: 0;
+  background: transparent;
   color: #3b5e8e;
-  border-radius: 999px;
+  border-radius: 0;
   width: 1.2rem;
   height: 1.2rem;
   padding: 0;
@@ -235,8 +235,8 @@ body {
   top: 1.55rem;
   left: 0;
   z-index: 30;
-  min-width: 13.2rem;
-  max-width: 16rem;
+  min-width: 15.2rem;
+  max-width: 17.2rem;
   padding: 0.5rem 0.58rem;
   border: 1px solid #bfd2ee;
   border-radius: 8px;
@@ -247,9 +247,7 @@ body {
 }
 
 .fx-info-title {
-  margin: 0 0 0.25rem;
-  font-size: 0.76rem;
-  font-weight: 700;
+  margin: 0 0 0.2rem;
 }
 
 .fx-info-list {
@@ -260,6 +258,7 @@ body {
 
 .fx-info-list li {
   margin: 0.12rem 0;
+  white-space: nowrap;
 }
 
 #fx-info-source {
@@ -267,6 +266,7 @@ body {
   margin-top: 0.3rem;
   font-size: 0.72rem;
   color: #1f63bd;
+  text-decoration: none;
 }
 
 .info-wrap:hover .fx-info-popover,
