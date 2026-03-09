@@ -2,4 +2,4 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-node --test tests/regression.test.js
+node --test tests/calculator-suite.test.js

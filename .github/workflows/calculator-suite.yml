@@ -1,4 +1,4 @@
-name: Regression Tests
+name: Calculator Test Suite
 
 on:
   push:
@@ -7,8 +7,8 @@ on:
   pull_request:
 
 jobs:
-  regression:
-    name: Run regression test suite
+  calculator-suite:
+    name: Run calculator test suite
     runs-on: ubuntu-latest
 
     steps:
@@ -20,5 +20,5 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Run regression tests
-        run: ./scripts/test-regression.sh
+      - name: Run calculator test suite
+        run: ./scripts/test-suite.sh

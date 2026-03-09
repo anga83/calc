@@ -512,3 +512,121 @@ test('Zeitumrechnung Varianten und Datumsdifferenz per Subtraktion', () => {
   assert.equal(rowResult(sheet, 4).value.value, 14);
   assert.equal(rowResult(sheet, 5).value.value, 14);
 });
+
+test('Komplexe Rechenkette mit Klammern, Potenzen, Prozent und Vergleichen', () => {
+  const evaluateSheet = loadEvaluateSheet();
+  const sheet = evaluateSheet([
+    'a = ((12 + 8) * 3 - 5^2) / 5',
+    'b = a + 12%',
+    'c = b - 10%',
+    'd = c > 8 ? c : 8',
+    'd',
+  ].join('\n'));
+
+  assertAlmostEqual(rowResult(sheet, 1).value.value, 7, 1e-12);
+  assertAlmostEqual(rowResult(sheet, 2).value.value, 7.84, 1e-12);
+  assertAlmostEqual(rowResult(sheet, 3).value.value, 7.056, 1e-12);
+  assert.equal(rowResult(sheet, 4).value.value, 8);
+  assert.equal(rowResult(sheet, 5).value.value, 8);
+});
+
+test('Mehrwort-Variablen mit Umlauten und case-insensitive Referenzierung', () => {
+  const evaluateSheet = loadEvaluateSheet();
+  const sheet = evaluateSheet([
+    'Monatlicher Umsatz = 12.500,75',
+    'monatlicher umsatz + 10%',
+    'MONATLICHER UMSATZ -= 500,75',
+    'Monatlicher Umsatz',
+  ].join('\n'));
+
+  assertAlmostEqual(rowResult(sheet, 1).value.value, 12500.75, 1e-12);
+  assertAlmostEqual(rowResult(sheet, 2).value.value, 13750.825, 1e-12);
+  assertAlmostEqual(rowResult(sheet, 3).value.value, 12000, 1e-12);
+  assertAlmostEqual(rowResult(sheet, 4).value.value, 12000, 1e-12);
+});
+
+test('Zeilenreferenzen mit Bereichen auf- und absteigend', () => {
+  const evaluateSheet = loadEvaluateSheet();
+  const sheet = evaluateSheet([
+    'x = 10',
+    'y = 20',
+    'z = 30',
+    'summe(@1:@3)',
+    'summe(@3:@1)',
+    'anzahl(@3:@1)',
+  ].join('\n'));
+
+  assert.equal(rowResult(sheet, 4).value.value, 60);
+  assert.equal(rowResult(sheet, 5).value.value, 60);
+  assert.equal(rowResult(sheet, 6).value.value, 3);
+});
+
+test('Einheiten- und Währungsumrechnung in längerer Kette', () => {
+  const evaluateSheet = loadEvaluateSheet();
+  const sheet = evaluateSheet([
+    'dist = 42 km',
+    'dist in mi',
+    'dist in m',
+    'budget = 1.500 €',
+    'budget in usd',
+    'budget in chf',
+    '24 h in min',
+    '1440 min in d',
+  ].join('\n'));
+
+  assert.equal(rowResult(sheet, 2).value.unit, 'mi');
+  assert.equal(rowResult(sheet, 3).value.unit, 'm');
+  assertAlmostEqual(rowResult(sheet, 3).value.value, 42000, 1e-10);
+  assert.equal(rowResult(sheet, 5).value.unit, 'usd');
+  assert.equal(rowResult(sheet, 6).value.unit, 'chf');
+  assert.equal(rowResult(sheet, 7).value.unit, 'min');
+  assert.equal(rowResult(sheet, 7).value.value, 1440);
+  assert.equal(rowResult(sheet, 8).value.unit, 'd');
+  assert.equal(rowResult(sheet, 8).value.value, 1);
+});
+
+test('Boolesche Konstanten und Vergleichslogik', () => {
+  const evaluateSheet = loadEvaluateSheet();
+  const sheet = evaluateSheet([
+    'wahr == true',
+    'falsch == false',
+    'true + 2',
+    'false + 2',
+    'wahr ? 9 : 1',
+    'falsch ? 9 : 1',
+  ].join('\n'));
+
+  assert.equal(rowResult(sheet, 1).display, 'true');
+  assert.equal(rowResult(sheet, 2).display, 'true');
+  assert.equal(rowResult(sheet, 3).value.value, 3);
+  assert.equal(rowResult(sheet, 4).value.value, 2);
+  assert.equal(rowResult(sheet, 5).value.value, 9);
+  assert.equal(rowResult(sheet, 6).value.value, 1);
+});
+
+test('Umfangreiche gemischte Eingabe mit Kommentaren, Leerzeilen und Inline-Kommentaren', () => {
+  const evaluateSheet = loadEvaluateSheet();
+  const sheet = evaluateSheet([
+    '# Projektkalkulation',
+    'netto = 2.499,90',
+    'mwst = 19%',
+    'brutto = netto + mwst // inkl. Steuer',
+    '',
+    'dauer = 3 h 45 min',
+    'dauer in min',
+    '',
+    'start = 2026-03-01',
+    'ende = 15. März 2026',
+    'tage zwischen(start; ende)',
+    'gesamt = brutto + 5%',
+    'gesamt',
+  ].join('\n'));
+
+  assert.equal(rowResult(sheet, 1).type, 'comment');
+  assertAlmostEqual(rowResult(sheet, 4).value.value, 2974.881, 1e-9);
+  assert.equal(rowResult(sheet, 7).value.value, 225);
+  assert.equal(rowResult(sheet, 7).value.unit, 'min');
+  assert.equal(rowResult(sheet, 11).value.value, 14);
+  assertAlmostEqual(rowResult(sheet, 12).value.value, 3123.62505, 1e-9);
+  assertAlmostEqual(rowResult(sheet, 13).value.value, 3123.62505, 1e-9);
+});

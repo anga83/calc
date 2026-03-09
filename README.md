@@ -171,8 +171,8 @@ Der Rechner ist auf produktives Arbeiten mit Zwischenschritten ausgelegt: Eingab
   - `zeilenrechner:view-mode`
   - `zeilenrechner:settings`
 - Test/CI:
-  - Regressionstest: `./scripts/test-regression.sh`
-  - GitHub Action: `.github/workflows/regression-tests.yml`
+  - Calculator Test Suite: `./scripts/test-suite.sh`
+  - GitHub Action: `.github/workflows/calculator-suite.yml`
 
 ## 5. Verwendetes Tool und LLM
 - Tool: Codex (Desktop-Agent)
