@@ -205,13 +205,15 @@ body {
   gap: 0.35rem;
 }
 
-.info-wrap {
+.app .info-wrap {
   position: relative;
   display: inline-flex;
   align-items: center;
 }
 
-.info-icon-btn {
+.app .info-icon-btn {
+  appearance: none;
+  -webkit-appearance: none;
   border: 0;
   background: transparent;
   color: #3b5e8e;
@@ -219,18 +221,24 @@ body {
   width: 1.2rem;
   height: 1.2rem;
   padding: 0;
+  margin: 0;
+  line-height: 1;
+  font: inherit;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  box-shadow: none;
 }
 
-.info-icon-btn svg {
-  width: 0.72rem;
-  height: 0.72rem;
+.app .info-icon-btn svg {
+  width: 0.72rem !important;
+  height: 0.72rem !important;
+  display: block;
+  flex: 0 0 auto;
 }
 
-.fx-info-popover {
+.app .info-wrap .fx-info-popover {
   position: absolute;
   top: 1.55rem;
   left: 0;
@@ -243,7 +251,12 @@ body {
   background: #f6f9ff;
   color: #2f4b72;
   box-shadow: 0 10px 26px rgba(23, 51, 92, 0.16);
-  display: none;
+  display: block;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-0.15rem);
+  transition: opacity 0.12s ease, visibility 0.12s ease, transform 0.12s ease;
 }
 
 .fx-info-title {
@@ -275,9 +288,12 @@ body {
   text-decoration: none;
 }
 
-.info-wrap:hover .fx-info-popover,
-.info-wrap:focus-within .fx-info-popover {
-  display: block;
+.app .info-wrap:hover .fx-info-popover,
+.app .info-wrap:focus-within .fx-info-popover {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 
 .setting-note {
