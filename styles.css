@@ -652,6 +652,156 @@ body {
   font-size: 0.8rem;
 }
 
+body.dark-mode {
+  background: radial-gradient(1200px 900px at 10% -15%, #1a2638 0%, #0f1825 56%, #132033 100%);
+  color: #e8edf8;
+}
+
+.app.dark-mode {
+  --panel: #121e2f;
+  --border: #2a3a50;
+  --text: #e8edf8;
+  --muted: #9babc2;
+  --accent: #6ea9ff;
+  --error: #ff7e8c;
+}
+
+.app.dark-mode .topbar {
+  background: linear-gradient(135deg, #0a1c38 0%, #18345e 56%, #265490 100%);
+  border: 1px solid #2c466b;
+}
+
+.app.dark-mode .help-chip {
+  border-color: rgba(183, 210, 247, 0.45);
+  background: rgba(145, 176, 223, 0.16);
+}
+
+.app.dark-mode .help-chip:hover,
+.app.dark-mode .help-chip:focus-visible {
+  background: rgba(145, 176, 223, 0.28);
+}
+
+.app.dark-mode .help-popover,
+.app.dark-mode .download-popover,
+.app.dark-mode .settings-popover {
+  border-color: #2d4668;
+  background: #122238;
+  color: #d9e5f8;
+  box-shadow: 0 14px 28px rgba(2, 8, 16, 0.55);
+}
+
+.app.dark-mode .download-option {
+  border-color: #355175;
+  background: #152943;
+  color: #d8e4f7;
+}
+
+.app.dark-mode .download-option:hover,
+.app.dark-mode .download-option:focus-visible {
+  background: #1f3960;
+}
+
+.app.dark-mode .help-popover code,
+.app.dark-mode .hints code {
+  background: #203857;
+  color: #dce9fb;
+}
+
+.app.dark-mode .help-link {
+  color: #a2c0eb;
+}
+
+.app.dark-mode .help-link a,
+.app.dark-mode #fx-info-source {
+  color: #8fc2ff;
+}
+
+.app.dark-mode .settings-group-title,
+.app.dark-mode .settings-popover h2,
+.app.dark-mode .download-popover h2,
+.app.dark-mode .help-popover h2 {
+  color: #9fc0ea;
+}
+
+.app.dark-mode .setting-label,
+.app.dark-mode .setting-note,
+.app.dark-mode #separator-status {
+  color: #c1d2ea;
+}
+
+.app.dark-mode .setting-select {
+  border-color: #355175;
+  background: #152943;
+  color: #d8e4f7;
+}
+
+.app.dark-mode .input-editor,
+.app.dark-mode #sheet-results,
+.app.dark-mode .result-editor {
+  background: #0f1a2a;
+}
+
+.app.dark-mode #sheet-input {
+  color: #d9e8ff;
+}
+
+.app.dark-mode .line-number-gutter {
+  color: #8ea1be;
+  background: #152437;
+  border-right-color: #2b3f58;
+}
+
+.app.dark-mode #sheet-highlight {
+  color: #d9e8ff;
+}
+
+.app.dark-mode .result-line {
+  color: #d5e2f6;
+}
+
+.app.dark-mode .result-line.comment,
+.app.dark-mode .result-line.empty {
+  color: #8fa3bf;
+}
+
+.app.dark-mode .hints {
+  color: #b8c7dc;
+}
+
+.app.dark-mode .fx-info-popover {
+  border-color: #365072;
+  background: #12263f;
+  color: #d2e2f8;
+}
+
+.app.dark-mode .hl-comment {
+  color: #7f93b1;
+}
+
+.app.dark-mode .hl-comment-strong {
+  color: #9db0cd;
+}
+
+.app.dark-mode .hl-operator {
+  color: #7cb4ff;
+}
+
+.app.dark-mode .hl-number {
+  color: #6fd3a0;
+}
+
+.app.dark-mode .hl-date {
+  color: #66d5d0;
+}
+
+.app.dark-mode .hl-boolean {
+  color: #cc98ff;
+}
+
+.app.dark-mode .hl-ref {
+  color: #f0b56e;
+}
+
 .app.fullsize {
   grid-template-rows: 1fr;
   gap: 0;

@@ -27,6 +27,7 @@ const settingFixedDecimalsEl = document.getElementById("setting-fixed-decimals")
 const settingIntegerNoDecimalsEl = document.getElementById("setting-integer-no-decimals");
 const settingPreciseIntermediateEl = document.getElementById("setting-precise-intermediate");
 const settingSyntaxHighlightEl = document.getElementById("setting-syntax-highlighting");
+const settingDarkModeEl = document.getElementById("setting-dark-mode");
 const settingLineNumbersEl = document.getElementById("setting-line-numbers");
 const settingAutoWrapEl = document.getElementById("setting-auto-wrap");
 const settingLanguageEl = document.getElementById("setting-language");
@@ -108,6 +109,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   integerNoDecimals: false,
   preciseIntermediates: true,
   syntaxHighlighting: false,
+  darkMode: false,
   lineNumbers: false,
   autoWrap: false,
   language: "auto",
@@ -136,6 +138,7 @@ const I18N = Object.freeze({
     labelFixedDecimals: "Fixe Nachkommastellen",
     labelIntegerNoDecimals: "Ganzzahlen ohne Nachkommastellen",
     labelSyntaxHighlighting: "Syntax-Highlighting",
+    labelDarkMode: "Dark Mode",
     labelLineNumbers: "Zeilennummern",
     labelAutoWrap: "Automatischer Zeilenumbruch",
     labelLanguage: "Sprache",
@@ -159,7 +162,7 @@ const I18N = Object.freeze({
     helpSyntax4: "Zuweisung: <code>=</code>, <code>+=</code>, <code>-=</code>",
     helpSyntax5: "Referenzen: <code>@3</code> (Zeile 3), <code>ans</code>/<code>last</code>, Datum: <code>heute</code>/<code>today</code>",
     helpSyntax6: "Vergleiche: <code>&gt;</code>, <code>&gt;=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>==</code>, <code>!=</code>",
-    helpSyntax7: "Kommentare: Zeilen mit <code>#</code> oder <code>//</code>",
+    helpSyntax7: "Kommentare: Zeilen mit <code>#</code> oder <code>//</code> (<code>##</code> für fette Kommentare)",
     helpSyntax8: "Ein trailing <code>=</code> wird ignoriert: <code>1 + 2 =</code>",
     helpSyntax9: "Variablennamen dürfen Leerzeichen und Umlaute enthalten; sie sind nicht case-sensitiv.",
     helpFunctions1: "<code>min(...)</code>, <code>max(...)</code> (z. B. <code>min(3;5)</code>)",
@@ -220,6 +223,7 @@ const I18N = Object.freeze({
     labelFixedDecimals: "Fixed decimal places",
     labelIntegerNoDecimals: "Hide decimals for integers",
     labelSyntaxHighlighting: "Syntax highlighting",
+    labelDarkMode: "Dark mode",
     labelLineNumbers: "Line numbers",
     labelAutoWrap: "Automatic line wrap",
     labelLanguage: "Language",
@@ -243,7 +247,7 @@ const I18N = Object.freeze({
     helpSyntax4: "Assignment: <code>=</code>, <code>+=</code>, <code>-=</code>",
     helpSyntax5: "References: <code>@3</code> (line 3), <code>ans</code>/<code>last</code>, date: <code>today</code>/<code>heute</code>",
     helpSyntax6: "Comparisons: <code>&gt;</code>, <code>&gt;=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>==</code>, <code>!=</code>",
-    helpSyntax7: "Comments: lines starting with <code>#</code> or <code>//</code>",
+    helpSyntax7: "Comments: lines starting with <code>#</code> or <code>//</code> (<code>##</code> for bold comments)",
     helpSyntax8: "A trailing <code>=</code> is ignored: <code>1 + 2 =</code>",
     helpSyntax9: "Variable names may contain spaces and umlauts; matching is case-insensitive.",
     helpFunctions1: "<code>min(...)</code>, <code>max(...)</code> (e.g. <code>min(3;5)</code>)",
@@ -816,6 +820,7 @@ function applyLocalization() {
   setTextById("label-fixed-decimals", t("labelFixedDecimals"));
   setTextById("label-integer-no-decimals", t("labelIntegerNoDecimals"));
   setTextById("label-syntax-highlighting", t("labelSyntaxHighlighting"));
+  setTextById("label-dark-mode", t("labelDarkMode"));
   setTextById("label-line-numbers", t("labelLineNumbers"));
   setTextById("label-auto-wrap", t("labelAutoWrap"));
   setTextById("label-language", t("labelLanguage"));
@@ -1002,6 +1007,7 @@ function sanitizeSettings(raw) {
     integerNoDecimals: Boolean(source.integerNoDecimals),
     preciseIntermediates: source.preciseIntermediates !== false,
     syntaxHighlighting: Boolean(source.syntaxHighlighting),
+    darkMode: Boolean(source.darkMode),
     lineNumbers: Boolean(source.lineNumbers),
     autoWrap: Boolean(source.autoWrap),
     language: sanitizeLanguage(source.language),
@@ -2925,6 +2931,9 @@ function applySettingsToUi() {
   if (settingSyntaxHighlightEl) {
     settingSyntaxHighlightEl.checked = appSettings.syntaxHighlighting;
   }
+  if (settingDarkModeEl) {
+    settingDarkModeEl.checked = appSettings.darkMode;
+  }
   if (settingLineNumbersEl) {
     settingLineNumbersEl.checked = appSettings.lineNumbers;
   }
@@ -2945,8 +2954,12 @@ function applySettingsToUi() {
   }
   if (appEl && appEl.classList) {
     appEl.classList.toggle("syntax-highlight", appSettings.syntaxHighlighting);
+    appEl.classList.toggle("dark-mode", appSettings.darkMode);
     appEl.classList.toggle("show-line-numbers", appSettings.lineNumbers);
     appEl.classList.toggle("auto-wrap", appSettings.autoWrap);
+  }
+  if (typeof document !== "undefined" && document.body && document.body.classList) {
+    document.body.classList.toggle("dark-mode", appSettings.darkMode);
   }
   if (inputEl) {
     inputEl.wrap = appSettings.autoWrap ? "soft" : "off";
@@ -3059,6 +3072,7 @@ function exportJson() {
       fixedDecimals: appSettings.fixedDecimals,
       integerNoDecimals: appSettings.integerNoDecimals,
       preciseIntermediates: appSettings.preciseIntermediates,
+      darkMode: appSettings.darkMode,
       lineNumbers: appSettings.lineNumbers,
       autoWrap: appSettings.autoWrap,
       decimalSeparator: appSettings.decimalSeparator,
@@ -3090,6 +3104,7 @@ function exportYaml() {
     `  fixedDecimals: ${appSettings.fixedDecimals}`,
     `  integerNoDecimals: ${appSettings.integerNoDecimals}`,
     `  preciseIntermediates: ${appSettings.preciseIntermediates}`,
+    `  darkMode: ${appSettings.darkMode}`,
     `  lineNumbers: ${appSettings.lineNumbers}`,
     `  autoWrap: ${appSettings.autoWrap}`,
     `  decimalSeparator: \"${escapeYamlString(appSettings.decimalSeparator)}\"`,
@@ -3672,6 +3687,12 @@ if (settingPreciseIntermediateEl && typeof settingPreciseIntermediateEl.addEvent
 if (settingSyntaxHighlightEl && typeof settingSyntaxHighlightEl.addEventListener === "function") {
   settingSyntaxHighlightEl.addEventListener("change", () => {
     patchSettings({ syntaxHighlighting: settingSyntaxHighlightEl.checked });
+  });
+}
+
+if (settingDarkModeEl && typeof settingDarkModeEl.addEventListener === "function") {
+  settingDarkModeEl.addEventListener("change", () => {
+    patchSettings({ darkMode: settingDarkModeEl.checked });
   });
 }
 
