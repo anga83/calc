@@ -27,10 +27,10 @@ const settingFixedDecimalsEl = document.getElementById("setting-fixed-decimals")
 const settingIntegerNoDecimalsEl = document.getElementById("setting-integer-no-decimals");
 const settingPreciseIntermediateEl = document.getElementById("setting-precise-intermediate");
 const settingSyntaxHighlightEl = document.getElementById("setting-syntax-highlighting");
-const settingDarkModeEl = document.getElementById("setting-dark-mode");
 const settingLineNumbersEl = document.getElementById("setting-line-numbers");
 const settingAutoWrapEl = document.getElementById("setting-auto-wrap");
 const settingLanguageEl = document.getElementById("setting-language");
+const settingThemeModeEl = document.getElementById("setting-theme-mode");
 const settingDecimalSeparatorEl = document.getElementById("setting-decimal-separator");
 const settingThousandsSeparatorEl = document.getElementById("setting-thousands-separator");
 const separatorStatusEl = document.getElementById("separator-status");
@@ -115,7 +115,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   integerNoDecimals: false,
   preciseIntermediates: true,
   syntaxHighlighting: false,
-  darkMode: false,
+  themeMode: "auto",
   lineNumbers: false,
   autoWrap: false,
   language: "auto",
@@ -144,7 +144,10 @@ const I18N = Object.freeze({
     labelFixedDecimals: "Fixe Nachkommastellen",
     labelIntegerNoDecimals: "Ganzzahlen ohne Nachkommastellen",
     labelSyntaxHighlighting: "Syntax-Highlighting",
-    labelDarkMode: "Dark Mode",
+    labelThemeMode: "Farbmodus",
+    optionThemeAuto: "Browser-Standard",
+    optionThemeLight: "Light",
+    optionThemeDark: "Dark",
     labelLineNumbers: "Zeilennummern",
     labelAutoWrap: "Automatischer Zeilenumbruch",
     labelLanguage: "Sprache",
@@ -230,7 +233,10 @@ const I18N = Object.freeze({
     labelFixedDecimals: "Fixed decimal places",
     labelIntegerNoDecimals: "Hide decimals for integers",
     labelSyntaxHighlighting: "Syntax highlighting",
-    labelDarkMode: "Dark mode",
+    labelThemeMode: "Theme mode",
+    optionThemeAuto: "Browser default",
+    optionThemeLight: "Light",
+    optionThemeDark: "Dark",
     labelLineNumbers: "Line numbers",
     labelAutoWrap: "Automatic line wrap",
     labelLanguage: "Language",
@@ -767,6 +773,21 @@ function sanitizeLanguage(value) {
   return value === "de" || value === "en" || value === "auto" ? value : DEFAULT_SETTINGS.language;
 }
 
+function sanitizeThemeMode(value) {
+  return value === "auto" || value === "light" || value === "dark" ? value : DEFAULT_SETTINGS.themeMode;
+}
+
+function detectPreferredThemeMode() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return "light";
+  }
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function resolveThemeMode(themeMode) {
+  return themeMode === "auto" ? detectPreferredThemeMode() : themeMode;
+}
+
 function resolveLanguage(settingLanguage) {
   return settingLanguage === "auto" ? detectLanguage() : settingLanguage;
 }
@@ -862,7 +883,7 @@ function applyLocalization() {
   setTextById("label-fixed-decimals", t("labelFixedDecimals"));
   setTextById("label-integer-no-decimals", t("labelIntegerNoDecimals"));
   setTextById("label-syntax-highlighting", t("labelSyntaxHighlighting"));
-  setTextById("label-dark-mode", t("labelDarkMode"));
+  setTextById("label-theme-mode", t("labelThemeMode"));
   setTextById("label-line-numbers", t("labelLineNumbers"));
   setTextById("label-auto-wrap", t("labelAutoWrap"));
   setTextById("label-language", t("labelLanguage"));
@@ -942,6 +963,17 @@ function applyLocalization() {
         option.textContent = t("optionLanguageDe");
       } else if (option.value === "en") {
         option.textContent = t("optionLanguageEn");
+      }
+    }
+  }
+  if (settingThemeModeEl) {
+    for (const option of settingThemeModeEl.options) {
+      if (option.value === "auto") {
+        option.textContent = t("optionThemeAuto");
+      } else if (option.value === "light") {
+        option.textContent = t("optionThemeLight");
+      } else if (option.value === "dark") {
+        option.textContent = t("optionThemeDark");
       }
     }
   }
@@ -1042,6 +1074,13 @@ function sanitizeSettings(raw) {
   const decimalSeparator = sanitizeDecimalSeparator(source.decimalSeparator);
   const thousandsSeparator = sanitizeThousandsSeparator(source.thousandsSeparator);
   const validSeparators = ensureValidSeparators(decimalSeparator, thousandsSeparator);
+  const migratedThemeMode = typeof source.themeMode === "string"
+    ? source.themeMode
+    : source.darkMode === true
+      ? "dark"
+      : source.darkMode === false
+        ? "light"
+        : DEFAULT_SETTINGS.themeMode;
   return {
     useMathJs: Boolean(source.useMathJs),
     useLiveFx: Boolean(source.useLiveFx),
@@ -1050,7 +1089,7 @@ function sanitizeSettings(raw) {
     integerNoDecimals: Boolean(source.integerNoDecimals),
     preciseIntermediates: source.preciseIntermediates !== false,
     syntaxHighlighting: Boolean(source.syntaxHighlighting),
-    darkMode: Boolean(source.darkMode),
+    themeMode: sanitizeThemeMode(migratedThemeMode),
     lineNumbers: Boolean(source.lineNumbers),
     autoWrap: Boolean(source.autoWrap),
     language: sanitizeLanguage(source.language),
@@ -2955,6 +2994,7 @@ function ensureMathJsLoaded() {
 
 function applySettingsToUi() {
   currentLanguage = resolveLanguage(appSettings.language);
+  const resolvedThemeMode = resolveThemeMode(appSettings.themeMode);
   applyLocalization();
 
   if (settingUseMathJsEl) {
@@ -2978,8 +3018,8 @@ function applySettingsToUi() {
   if (settingSyntaxHighlightEl) {
     settingSyntaxHighlightEl.checked = appSettings.syntaxHighlighting;
   }
-  if (settingDarkModeEl) {
-    settingDarkModeEl.checked = appSettings.darkMode;
+  if (settingThemeModeEl) {
+    settingThemeModeEl.value = appSettings.themeMode;
   }
   if (settingLineNumbersEl) {
     settingLineNumbersEl.checked = appSettings.lineNumbers;
@@ -3001,12 +3041,12 @@ function applySettingsToUi() {
   }
   if (appEl && appEl.classList) {
     appEl.classList.toggle("syntax-highlight", appSettings.syntaxHighlighting);
-    appEl.classList.toggle("dark-mode", appSettings.darkMode);
+    appEl.classList.toggle("dark-mode", resolvedThemeMode === "dark");
     appEl.classList.toggle("show-line-numbers", appSettings.lineNumbers);
     appEl.classList.toggle("auto-wrap", appSettings.autoWrap);
   }
   if (typeof document !== "undefined" && document.body && document.body.classList) {
-    document.body.classList.toggle("dark-mode", appSettings.darkMode);
+    document.body.classList.toggle("dark-mode", resolvedThemeMode === "dark");
   }
   if (inputEl) {
     inputEl.wrap = appSettings.autoWrap ? "soft" : "off";
@@ -3119,7 +3159,7 @@ function exportJson() {
       fixedDecimals: appSettings.fixedDecimals,
       integerNoDecimals: appSettings.integerNoDecimals,
       preciseIntermediates: appSettings.preciseIntermediates,
-      darkMode: appSettings.darkMode,
+      themeMode: appSettings.themeMode,
       lineNumbers: appSettings.lineNumbers,
       autoWrap: appSettings.autoWrap,
       decimalSeparator: appSettings.decimalSeparator,
@@ -3151,7 +3191,7 @@ function exportYaml() {
     `  fixedDecimals: ${appSettings.fixedDecimals}`,
     `  integerNoDecimals: ${appSettings.integerNoDecimals}`,
     `  preciseIntermediates: ${appSettings.preciseIntermediates}`,
-    `  darkMode: ${appSettings.darkMode}`,
+    `  themeMode: \"${escapeYamlString(appSettings.themeMode)}\"`,
     `  lineNumbers: ${appSettings.lineNumbers}`,
     `  autoWrap: ${appSettings.autoWrap}`,
     `  decimalSeparator: \"${escapeYamlString(appSettings.decimalSeparator)}\"`,
@@ -3737,9 +3777,9 @@ if (settingSyntaxHighlightEl && typeof settingSyntaxHighlightEl.addEventListener
   });
 }
 
-if (settingDarkModeEl && typeof settingDarkModeEl.addEventListener === "function") {
-  settingDarkModeEl.addEventListener("change", () => {
-    patchSettings({ darkMode: settingDarkModeEl.checked });
+if (settingThemeModeEl && typeof settingThemeModeEl.addEventListener === "function") {
+  settingThemeModeEl.addEventListener("change", () => {
+    patchSettings({ themeMode: sanitizeThemeMode(settingThemeModeEl.value) });
   });
 }
 

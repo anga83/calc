@@ -10,6 +10,7 @@ Der Rechner ist auf produktives Arbeiten mit Zwischenschritten ausgelegt: Eingab
 - Zeilenweises Rechnen mit Live-Auswertung.
 - Zweispalten-Layout (ca. 70 % Eingabe / 30 % Ergebnis), responsiv für Desktop und Mobile.
 - Kommentare über `#` und `//` (inkl. Inline-`//`).
+- `##`-Kommentarzeilen werden in der Eingabe zusätzlich fett dargestellt (bei Syntax-Highlighting).
 - Variablen mit Zuweisung und Update:
   - `name = ...`
   - `name += ...`
@@ -28,6 +29,10 @@ Der Rechner ist auf produktives Arbeiten mit Zwischenschritten ausgelegt: Eingab
   - Operatoren: `in`, `to`, `zu`, `as`, `als`
   - Kurzform: `km m`
   - Unterstützte Dimensionen: Länge, Masse, Zeit, Volumen, Fläche, Geschwindigkeit, Temperatur, Währung
+  - Währungen:
+    - Feste Default-Kurse (offline verfügbar)
+    - Optional Live-Kurse via Frankfurter-API (`base=EUR`)
+    - Bei aktivierten Live-Kursen werden alle von der API gelieferten Währungen unterstützt
 - Trailing `=` wird ignoriert (`1 + 2 =` ist gültig).
 - `Tab` im Eingabefeld fügt 4 Leerzeichen ein.
 - Datums-/Zeitrechnung:
@@ -60,13 +65,17 @@ Der Rechner ist auf produktives Arbeiten mit Zwischenschritten ausgelegt: Eingab
 
 ### Einstellungen (persistiert via Local Storage)
 - `math.js verwenden` (ohne Reload umschaltbar)
+- `Live-Wechselkurse` (Fixwerte vs. API-Livewerte)
 - `Mit genauen Zwischenergebnissen rechnen`
 - `Nachkommastellen` (0–10, Standard: 4)
 - `Fixe Nachkommastellen` (Standard: aus)
 - `Ganzzahlen ohne Nachkommastellen`
 - `Syntax-Highlighting`
+  - `##`-Kommentare als fette Kommentarzeilen
   - inkl. Hervorhebung für Zeitoperatoren (`tage zwischen`, `days between`, `tage bis`, `days until`)
   - inkl. Hervorhebung für Datumsangaben (`2026-03-01`, `01.03.2026`, `1. März 2026`)
+- `Farbmodus` (`Browser-Standard`, `Light`, `Dark`)
+  - Browser-Standard kann manuell übersteuert werden
 - `Zeilennummern` (Input/Ergebnisse + PDF, nicht Markdown)
 - `Automatischer Zeilenumbruch`
 - `Sprache` (`Browser-Standard`, `Deutsch`, `English`)
@@ -83,6 +92,8 @@ Der Rechner ist auf produktives Arbeiten mit Zwischenschritten ausgelegt: Eingab
   - `Zeit-Demo`/`Time Demo` für Zeit- und Datumsbeispiele (sprachabhängig)
 - Download-Chip mit Export-Popover.
 - Settings-Chip mit gruppierten Einstellungsblöcken.
+  - Info-Popover bei `math.js verwenden` (Kurzbeschreibung zusätzlicher Funktionen)
+  - Info-Popover bei `Live-Wechselkurse` (aktuell verwendete Kurse + Quelle bei Live-Daten)
 - Fullsize-Ansicht:
   - blendet Topbar und Footer aus
   - halbtransparenter Floating-Button bleibt sichtbar
@@ -121,9 +132,9 @@ Der Rechner ist auf produktives Arbeiten mit Zwischenschritten ausgelegt: Eingab
 - `index.html`
   - Grundlayout, Toolbar-Chips, Popover (Hilfe/Export/Settings), Eingabe-/Ergebnisbereiche
 - `styles.css`
-  - Layout, responsives Verhalten, Theme, Zeilennummern-/Wrap-/Fullscreen-Styling
+  - Layout, responsives Verhalten, Light/Dark-Theme, Zeilennummern-/Wrap-/Fullscreen-Styling
 - `app.js`
-  - Parser, Evaluator, Variablen-/Referenzlogik, Funktionen, Umrechnungen, Datums-/Zeitlogik, i18n, Einstellungen, Persistenz, Exporte
+  - Parser, Evaluator, Variablen-/Referenzlogik, Funktionen, Umrechnungen, Datums-/Zeitlogik, Live-FX-Handling, i18n, Einstellungen, Persistenz, Exporte
 - `manifest.webmanifest`, `sw.js`, `icons/*`
   - PWA-Metadaten, Caching, App-Icons
 
@@ -158,6 +169,9 @@ Der Rechner ist auf produktives Arbeiten mit Zwischenschritten ausgelegt: Eingab
   - `tage bis`/`days until` und `tage zwischen`/`days between` unterstützen
   - Datumsformate `YYYY-MM-DD`, `DD.MM.YYYY`, `DD. MMMM YYYY`
   - Datumswerte in Highlighting und Anzeige konsistent behandeln
+- Währungslogik:
+  - Fixe Fallback-Kurse plus optionale Live-Kurse (Frankfurter)
+  - Bei Live-Kursen dynamisch alle API-Währungen als Einheiten/Aliasse zulassen
 - UI-Details, die nicht regressieren dürfen:
   - 70/30-Aufteilung Input/Ergebnis
   - saubere Zeilennummern-Ausrichtung bei an/aus
