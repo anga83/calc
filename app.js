@@ -126,6 +126,8 @@ const I18N = Object.freeze({
     settingsGroupDisplay: "Anzeige",
     settingsGroupNumberFormat: "Zahlenformat",
     labelUseMathJs: "math.js verwenden",
+    mathJsInfoTitle: "math.js",
+    mathJsInfoText: "Erweitert den Rechner um zusätzliche mathematische Funktionen und komplexere Ausdrücke (z. B. sqrt, trigonometrische Funktionen, log).",
     labelLiveFx: "Live-Wechselkurse",
     fxInfoTitle: "Verwendete Kurse (Basis EUR)",
     fxInfoSource: "Quelle: frankfurter.dev",
@@ -208,6 +210,8 @@ const I18N = Object.freeze({
     settingsGroupDisplay: "Display",
     settingsGroupNumberFormat: "Number Format",
     labelUseMathJs: "Use math.js",
+    mathJsInfoTitle: "math.js",
+    mathJsInfoText: "Extends the calculator with additional math functions and more complex expressions (e.g. sqrt, trigonometric functions, log).",
     labelLiveFx: "Live exchange rates",
     fxInfoTitle: "Applied rates (base EUR)",
     fxInfoSource: "Source: frankfurter.dev",
@@ -804,6 +808,8 @@ function applyLocalization() {
   setTextById("settings-group-display", t("settingsGroupDisplay"));
   setTextById("settings-group-number-format", t("settingsGroupNumberFormat"));
   setTextById("label-use-mathjs", t("labelUseMathJs"));
+  setTextById("mathjs-info-title", t("mathJsInfoTitle"));
+  setTextById("mathjs-info-text", t("mathJsInfoText"));
   setTextById("label-live-fx", t("labelLiveFx"));
   setTextById("label-precise-intermediate", t("labelPreciseIntermediate"));
   setTextById("label-decimals", t("labelDecimals"));
@@ -2344,8 +2350,11 @@ function tokenizeForHighlight(code) {
 
 function splitLineForHighlight(line) {
   const trimmed = line.trimStart();
+  if (trimmed.startsWith("##")) {
+    return { code: "", comment: line, commentKind: "comment-strong" };
+  }
   if (trimmed.startsWith("#") || trimmed.startsWith("//")) {
-    return { code: "", comment: line };
+    return { code: "", comment: line, commentKind: "comment" };
   }
 
   const inlineCommentIndex = findInlineDoubleSlashIndex(line);
@@ -2356,6 +2365,7 @@ function splitLineForHighlight(line) {
   return {
     code: line.slice(0, inlineCommentIndex),
     comment: line.slice(inlineCommentIndex),
+    commentKind: "comment",
   };
 }
 
@@ -2370,7 +2380,7 @@ function getLineHighlightSegments(line) {
   }
 
   if (split.comment) {
-    segments.push({ text: split.comment, kind: "comment" });
+    segments.push({ text: split.comment, kind: split.commentKind || "comment" });
   }
 
   return segments;

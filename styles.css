@@ -250,6 +250,12 @@ body {
   margin: 0 0 0.2rem;
 }
 
+#mathjs-info-text {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.28;
+}
+
 .fx-info-list {
   margin: 0;
   padding-left: 1.1rem;
@@ -278,6 +284,10 @@ body {
   margin: 0.25rem 0 0.55rem;
   font-size: 0.76rem;
   color: #37547b;
+}
+
+#separator-status {
+  font-size: 0.72rem;
 }
 
 .setting-select {
@@ -579,6 +589,11 @@ body {
 
 .hl-comment {
   color: #8c96aa;
+}
+
+.hl-comment-strong {
+  color: #7f8798;
+  font-weight: 700;
 }
 
 .hl-operator {
