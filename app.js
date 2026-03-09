@@ -21,6 +21,7 @@ const exportMdBtnEl = document.getElementById("export-md-btn");
 const exportJsonBtnEl = document.getElementById("export-json-btn");
 const exportYamlBtnEl = document.getElementById("export-yaml-btn");
 const settingUseMathJsEl = document.getElementById("setting-use-mathjs");
+const settingLiveFxEl = document.getElementById("setting-live-fx");
 const settingDecimalsEl = document.getElementById("setting-decimals");
 const settingFixedDecimalsEl = document.getElementById("setting-fixed-decimals");
 const settingIntegerNoDecimalsEl = document.getElementById("setting-integer-no-decimals");
@@ -33,6 +34,9 @@ const settingDecimalSeparatorEl = document.getElementById("setting-decimal-separ
 const settingThousandsSeparatorEl = document.getElementById("setting-thousands-separator");
 const separatorStatusEl = document.getElementById("separator-status");
 const mathJsStatusEl = document.getElementById("mathjs-status");
+const fxInfoListEl = document.getElementById("fx-info-list");
+const fxInfoSourceEl = document.getElementById("fx-info-source");
+const fxInfoTitleEl = document.getElementById("fx-info-title");
 const resizeChipEl = document.getElementById("resize-chip");
 const resizeFloatEl = document.getElementById("resize-float");
 
@@ -88,9 +92,17 @@ const DECIMAL_SEPARATOR_OPTIONS = [",", "."];
 const THOUSANDS_SEPARATOR_OPTIONS = [".", ",", "'", ""];
 let currentLanguage = detectLanguage();
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const FRANKFURTER_API_URL = "https://api.frankfurter.dev/v1/latest?base=EUR&symbols=USD,CHF,GBP";
+const FIXED_CURRENCY_RATES = Object.freeze({
+  eur: 1,
+  usd: 0.93,
+  chf: 0.97,
+  gbp: 1.16,
+});
 
 const DEFAULT_SETTINGS = Object.freeze({
   useMathJs: false,
+  useLiveFx: false,
   decimalPlaces: 4,
   fixedDecimals: false,
   integerNoDecimals: false,
@@ -114,6 +126,9 @@ const I18N = Object.freeze({
     settingsGroupDisplay: "Anzeige",
     settingsGroupNumberFormat: "Zahlenformat",
     labelUseMathJs: "math.js verwenden",
+    labelLiveFx: "Live-Wechselkurse",
+    fxInfoTitle: "Verwendete Kurse (Basis EUR)",
+    fxInfoSource: "Quelle: frankfurter.dev",
     labelPreciseIntermediate: "Mit genauen Zwischenergebnissen rechnen",
     labelDecimals: "Nachkommastellen",
     labelFixedDecimals: "Fixe Nachkommastellen",
@@ -193,6 +208,9 @@ const I18N = Object.freeze({
     settingsGroupDisplay: "Display",
     settingsGroupNumberFormat: "Number Format",
     labelUseMathJs: "Use math.js",
+    labelLiveFx: "Live exchange rates",
+    fxInfoTitle: "Applied rates (base EUR)",
+    fxInfoSource: "Source: frankfurter.dev",
     labelPreciseIntermediate: "Use precise intermediate values",
     labelDecimals: "Decimal places",
     labelFixedDecimals: "Fixed decimal places",
@@ -309,6 +327,98 @@ const unitDefs = {
   chf: linearUnit("currency", "CHF", 0.97),
   gbp: linearUnit("currency", "£", 1.16),
 };
+
+let activeCurrencyRates = { ...FIXED_CURRENCY_RATES };
+let liveCurrencyRates = null;
+let liveFxLastUpdated = null;
+
+function applyCurrencyRates(rates) {
+  const normalized = {
+    eur: 1,
+    usd: Number(rates.usd),
+    chf: Number(rates.chf),
+    gbp: Number(rates.gbp),
+  };
+
+  if (!Number.isFinite(normalized.usd) || !Number.isFinite(normalized.chf) || !Number.isFinite(normalized.gbp)) {
+    return false;
+  }
+
+  activeCurrencyRates = normalized;
+  unitDefs.eur = linearUnit("currency", "€", normalized.eur);
+  unitDefs.usd = linearUnit("currency", "$", normalized.usd);
+  unitDefs.chf = linearUnit("currency", "CHF", normalized.chf);
+  unitDefs.gbp = linearUnit("currency", "£", normalized.gbp);
+  return true;
+}
+
+function getDisplayCurrencyRates() {
+  return appSettings && appSettings.useLiveFx && liveCurrencyRates ? liveCurrencyRates : FIXED_CURRENCY_RATES;
+}
+
+function renderFxInfoList() {
+  if (!fxInfoListEl) {
+    return;
+  }
+
+  const rates = getDisplayCurrencyRates();
+  const items = [
+    `EUR: 1`,
+    `USD: ${Number(rates.usd).toFixed(6)}`,
+    `CHF: ${Number(rates.chf).toFixed(6)}`,
+    `GBP: ${Number(rates.gbp).toFixed(6)}`,
+  ];
+
+  if (liveFxLastUpdated && appSettings && appSettings.useLiveFx && liveCurrencyRates) {
+    const stamp = liveFxLastUpdated.toISOString().replace("T", " ").replace(/\.\d{3}Z$/u, " UTC");
+    items.push(`Stand: ${stamp}`);
+  }
+
+  fxInfoListEl.innerHTML = items.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  if (fxInfoSourceEl) {
+    fxInfoSourceEl.hidden = !(appSettings && appSettings.useLiveFx && liveCurrencyRates);
+  }
+}
+
+async function refreshLiveFxRates() {
+  if (!appSettings || !appSettings.useLiveFx || typeof fetch !== "function") {
+    applyCurrencyRates(FIXED_CURRENCY_RATES);
+    renderFxInfoList();
+    return;
+  }
+
+  try {
+    const response = await fetch(FRANKFURTER_API_URL, { method: "GET" });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const payload = await response.json();
+    const rates = payload && payload.rates ? payload.rates : null;
+    if (!rates) {
+      throw new Error("Invalid payload");
+    }
+
+    const fetchedRates = {
+      eur: 1,
+      usd: rates.USD,
+      chf: rates.CHF,
+      gbp: rates.GBP,
+    };
+    if (applyCurrencyRates(fetchedRates)) {
+      liveCurrencyRates = { ...activeCurrencyRates };
+      liveFxLastUpdated = new Date();
+    } else {
+      throw new Error("Invalid rates");
+    }
+  } catch (_error) {
+    liveCurrencyRates = null;
+    liveFxLastUpdated = null;
+    applyCurrencyRates(FIXED_CURRENCY_RATES);
+  }
+
+  renderFxInfoList();
+  recalculate();
+}
 
 const unitAliases = new Map([
   ["millimeter", "mm"],
@@ -494,6 +604,7 @@ const highlightTokenRegex = /(\b(?:tage\s+zwischen|days\s+between|tage\s+bis|day
 
 let lastEvaluation = { lineValues: [] };
 let appSettings = loadPersistedSettings();
+applyCurrencyRates(FIXED_CURRENCY_RATES);
 let mathJsLoadPromise = null;
 let mathJsLoadState = "idle";
 
@@ -693,6 +804,7 @@ function applyLocalization() {
   setTextById("settings-group-display", t("settingsGroupDisplay"));
   setTextById("settings-group-number-format", t("settingsGroupNumberFormat"));
   setTextById("label-use-mathjs", t("labelUseMathJs"));
+  setTextById("label-live-fx", t("labelLiveFx"));
   setTextById("label-precise-intermediate", t("labelPreciseIntermediate"));
   setTextById("label-decimals", t("labelDecimals"));
   setTextById("label-fixed-decimals", t("labelFixedDecimals"));
@@ -743,6 +855,8 @@ function applyLocalization() {
   setTextById("export-yaml-btn", t("exportYaml"));
   setTextById("load-demo-btn", t("demoButton"));
   setTextById("load-time-demo-btn", t("timeDemoButton"));
+  setTextById("fx-info-title", t("fxInfoTitle"));
+  setTextById("fx-info-source", t("fxInfoSource"));
 
   if (settingDecimalSeparatorEl) {
     for (const option of settingDecimalSeparatorEl.options) {
@@ -876,6 +990,7 @@ function sanitizeSettings(raw) {
   const validSeparators = ensureValidSeparators(decimalSeparator, thousandsSeparator);
   return {
     useMathJs: Boolean(source.useMathJs),
+    useLiveFx: Boolean(source.useLiveFx),
     decimalPlaces: clampDecimalPlaces(source.decimalPlaces),
     fixedDecimals: Boolean(source.fixedDecimals),
     integerNoDecimals: Boolean(source.integerNoDecimals),
@@ -2782,6 +2897,9 @@ function applySettingsToUi() {
   if (settingUseMathJsEl) {
     settingUseMathJsEl.checked = appSettings.useMathJs;
   }
+  if (settingLiveFxEl) {
+    settingLiveFxEl.checked = appSettings.useLiveFx;
+  }
   if (settingDecimalsEl) {
     settingDecimalsEl.value = String(clampDecimalPlaces(appSettings.decimalPlaces));
   }
@@ -2825,6 +2943,14 @@ function applySettingsToUi() {
   }
   updateMathJsStatus();
   updateNumberSeparatorStatus();
+  if (appSettings.useLiveFx) {
+    refreshLiveFxRates();
+  } else {
+    liveCurrencyRates = null;
+    liveFxLastUpdated = null;
+    applyCurrencyRates(FIXED_CURRENCY_RATES);
+    renderFxInfoList();
+  }
   renderLineNumbers(lastEvaluation);
   renderInputHighlight();
 }
@@ -2927,7 +3053,8 @@ function exportJson() {
       autoWrap: appSettings.autoWrap,
       decimalSeparator: appSettings.decimalSeparator,
       thousandsSeparator: appSettings.thousandsSeparator,
-      useMathJs: appSettings.useMathJs
+      useMathJs: appSettings.useMathJs,
+      useLiveFx: appSettings.useLiveFx
     },
     rows: createExportObjects()
   };
@@ -2958,6 +3085,7 @@ function exportYaml() {
     `  decimalSeparator: \"${escapeYamlString(appSettings.decimalSeparator)}\"`,
     `  thousandsSeparator: \"${escapeYamlString(appSettings.thousandsSeparator)}\"`,
     `  useMathJs: ${appSettings.useMathJs}`,
+    `  useLiveFx: ${appSettings.useLiveFx}`,
     "rows:"
   ];
 
@@ -3498,6 +3626,12 @@ if (settingUseMathJsEl && typeof settingUseMathJsEl.addEventListener === "functi
     if (appSettings.useMathJs) {
       ensureMathJsLoaded();
     }
+  });
+}
+
+if (settingLiveFxEl && typeof settingLiveFxEl.addEventListener === "function") {
+  settingLiveFxEl.addEventListener("change", () => {
+    patchSettings({ useLiveFx: settingLiveFxEl.checked });
   });
 }
 
