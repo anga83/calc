@@ -96,9 +96,10 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const FRANKFURTER_API_URL = "https://api.frankfurter.dev/v1/latest?base=EUR";
 const FIXED_CURRENCY_RATES = Object.freeze({
   eur: 1,
-  usd: 0.93,
-  chf: 0.97,
-  gbp: 1.16,
+  // Stand: 09.03.2026 (letzter verfuegbarer EZB-Handelstag: 06.03.2026), als EUR je 1 Einheit
+  usd: 1 / 1.1561,
+  chf: 1 / 0.9045,
+  gbp: 1 / 0.86693,
 });
 const CURRENCY_SYMBOLS = Object.freeze({
   eur: "€",
@@ -138,7 +139,8 @@ const I18N = Object.freeze({
     mathJsInfoText: "Erweitert den Rechner um zusätzliche mathematische Funktionen und komplexere Ausdrücke (z. B. sqrt, trigonometrische Funktionen, log).",
     labelLiveFx: "Live-Wechselkurse",
     fxInfoTitle: "Verwendete Kurse (Basis EUR)",
-    fxInfoSource: "Quelle: frankfurter.dev",
+    fxInfoSourceLive: "Quelle: frankfurter.dev",
+    fxInfoSourceFixed: "Kurse vom 09.03.2026",
     labelPreciseIntermediate: "Mit genauen Zwischenergebnissen rechnen",
     labelDecimals: "Nachkommastellen",
     labelFixedDecimals: "Fixe Nachkommastellen",
@@ -227,7 +229,8 @@ const I18N = Object.freeze({
     mathJsInfoText: "Extends the calculator with additional math functions and more complex expressions (e.g. sqrt, trigonometric functions, log).",
     labelLiveFx: "Live exchange rates",
     fxInfoTitle: "Applied rates (base EUR)",
-    fxInfoSource: "Source: frankfurter.dev",
+    fxInfoSourceLive: "Source: frankfurter.dev",
+    fxInfoSourceFixed: "Rates from 2026-03-09",
     labelPreciseIntermediate: "Use precise intermediate values",
     labelDecimals: "Decimal places",
     labelFixedDecimals: "Fixed decimal places",
@@ -356,6 +359,23 @@ let liveFxLastUpdated = null;
 const dynamicCurrencyUnitKeys = new Set();
 const dynamicCurrencyAliasKeys = new Set();
 
+function toEurBaseDisplayRates(internalRates) {
+  const source = internalRates && typeof internalRates === "object" ? internalRates : {};
+  const converted = { eur: 1 };
+  for (const [code, rawRate] of Object.entries(source)) {
+    const key = String(code || "").trim().toLowerCase();
+    if (!/^[a-z]{3}$/u.test(key) || key === "eur") {
+      continue;
+    }
+    const numeric = Number(rawRate);
+    if (!Number.isFinite(numeric) || numeric <= 0) {
+      continue;
+    }
+    converted[key] = 1 / numeric;
+  }
+  return converted;
+}
+
 function clearDynamicCurrencyUnits() {
   for (const key of dynamicCurrencyUnitKeys) {
     delete unitDefs[key];
@@ -407,7 +427,8 @@ function applyCurrencyRates(rates) {
 }
 
 function getDisplayCurrencyRates() {
-  return appSettings && appSettings.useLiveFx && liveCurrencyRates ? liveCurrencyRates : FIXED_CURRENCY_RATES;
+  const internalRates = appSettings && appSettings.useLiveFx && liveCurrencyRates ? liveCurrencyRates : FIXED_CURRENCY_RATES;
+  return toEurBaseDisplayRates(internalRates);
 }
 
 function renderFxInfoList() {
@@ -434,7 +455,29 @@ function renderFxInfoList() {
 
   fxInfoListEl.innerHTML = items.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
   if (fxInfoSourceEl) {
-    fxInfoSourceEl.hidden = !(appSettings && appSettings.useLiveFx);
+    const liveFxActive = Boolean(appSettings && appSettings.useLiveFx);
+    fxInfoSourceEl.hidden = false;
+    if (liveFxActive) {
+      fxInfoSourceEl.textContent = t("fxInfoSourceLive");
+      fxInfoSourceEl.classList.remove("is-fixed");
+      if ("href" in fxInfoSourceEl) {
+        fxInfoSourceEl.href = "https://frankfurter.dev";
+      }
+      if ("target" in fxInfoSourceEl) {
+        fxInfoSourceEl.target = "_blank";
+      }
+      if ("rel" in fxInfoSourceEl) {
+        fxInfoSourceEl.rel = "noopener noreferrer";
+      }
+    } else {
+      fxInfoSourceEl.textContent = t("fxInfoSourceFixed");
+      fxInfoSourceEl.classList.add("is-fixed");
+      if (typeof fxInfoSourceEl.removeAttribute === "function") {
+        fxInfoSourceEl.removeAttribute("href");
+        fxInfoSourceEl.removeAttribute("target");
+        fxInfoSourceEl.removeAttribute("rel");
+      }
+    }
   }
 }
 
@@ -458,7 +501,13 @@ async function refreshLiveFxRates() {
 
     const fetchedRates = { eur: 1 };
     for (const [code, rate] of Object.entries(rates)) {
-      fetchedRates[String(code || "").toLowerCase()] = rate;
+      const normalizedCode = String(code || "").toLowerCase();
+      const numericRate = Number(rate);
+      if (!Number.isFinite(numericRate) || numericRate <= 0) {
+        continue;
+      }
+      // API liefert "1 EUR = X CODE"; intern rechnen wir mit "1 CODE = X EUR".
+      fetchedRates[normalizedCode] = 1 / numericRate;
     }
     if (applyCurrencyRates(fetchedRates)) {
       liveCurrencyRates = { ...activeCurrencyRates };
@@ -931,7 +980,7 @@ function applyLocalization() {
   setTextById("load-demo-btn", t("demoButton"));
   setTextById("load-time-demo-btn", t("timeDemoButton"));
   setTextById("fx-info-title", t("fxInfoTitle"));
-  setTextById("fx-info-source", t("fxInfoSource"));
+  setTextById("fx-info-source", t(appSettings && appSettings.useLiveFx ? "fxInfoSourceLive" : "fxInfoSourceFixed"));
 
   if (settingDecimalSeparatorEl) {
     for (const option of settingDecimalSeparatorEl.options) {

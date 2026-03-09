@@ -288,6 +288,11 @@ body {
   text-decoration: none;
 }
 
+#fx-info-source.is-fixed {
+  color: #6b7f9c;
+  cursor: default;
+}
+
 .app .info-wrap:hover .fx-info-popover,
 .app .info-wrap:focus-within .fx-info-popover {
   opacity: 1;
@@ -730,6 +735,10 @@ body.dark-mode {
 .app.dark-mode .help-link a,
 .app.dark-mode #fx-info-source {
   color: #8fc2ff;
+}
+
+.app.dark-mode #fx-info-source.is-fixed {
+  color: #8b97ac;
 }
 
 .app.dark-mode .settings-group-title,
