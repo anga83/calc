@@ -93,12 +93,18 @@ const DECIMAL_SEPARATOR_OPTIONS = [",", "."];
 const THOUSANDS_SEPARATOR_OPTIONS = [".", ",", "'", ""];
 let currentLanguage = detectLanguage();
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const FRANKFURTER_API_URL = "https://api.frankfurter.dev/v1/latest?base=EUR&symbols=USD,CHF,GBP";
+const FRANKFURTER_API_URL = "https://api.frankfurter.dev/v1/latest?base=EUR";
 const FIXED_CURRENCY_RATES = Object.freeze({
   eur: 1,
   usd: 0.93,
   chf: 0.97,
   gbp: 1.16,
+});
+const CURRENCY_SYMBOLS = Object.freeze({
+  eur: "€",
+  usd: "$",
+  gbp: "£",
+  chf: "CHF",
 });
 
 const DEFAULT_SETTINGS = Object.freeze({
@@ -170,7 +176,8 @@ const I18N = Object.freeze({
     helpFunctions3: "Bereiche: <code>summe(@1:@4)</code> summiert Zeilen 1 bis 4 (leere/Kommentarzeilen werden übersprungen)",
     helpFunctions4: "Statistik: <code>durchschnitt(10; 20; 30)</code>, <code>mittelwert(10; 20; 30)</code>, <code>anzahl(@1:@4)</code>",
     helpFunctions5: "Zeitfunktionen: <code>tage bis(2026-03-20)</code>, <code>tage&nbsp;zwischen(2026-03-01; 2026-03-15)</code>",
-    helpFunctions6: "Funktionsnamen sind nicht case-sensitiv und funktionieren mit oder ohne führendes <code>=</code>.",
+    helpFunctions6: "Datumsformate: <code>YYYY-MM-DD</code>, <code>DD.MM.YYYY</code>, <code>DD. MMMM YYYY</code> (z. B. <code>1. März 2026</code>)",
+    helpFunctions7: "Funktionsnamen sind nicht case-sensitiv und funktionieren mit oder ohne führendes <code>=</code>.",
     helpLinkLine: "Weiterführende Syntax: <a id=\"help-link-mathjs\" href=\"https://mathjs.org/docs/expressions/syntax.html\" target=\"_blank\" rel=\"noopener noreferrer\">mathjs.org/docs/expressions/syntax.html</a>",
     helpConv1: "Länge: <code>mm</code>, <code>cm</code>, <code>m</code>, <code>km</code>, <code>in</code>, <code>ft</code>, <code>yd</code>, <code>mi</code>",
     helpConv2: "Masse: <code>mg</code>, <code>g</code>, <code>kg</code>, <code>t</code>, <code>oz</code>, <code>lb</code>",
@@ -255,7 +262,8 @@ const I18N = Object.freeze({
     helpFunctions3: "Ranges: <code>sum(@1:@4)</code> sums lines 1 to 4 (empty/comment lines are skipped)",
     helpFunctions4: "Statistics: <code>average(10, 20, 30)</code>, <code>avg(10, 20, 30)</code>, <code>count(@1:@4)</code>",
     helpFunctions5: "Time functions: <code>days until(2026-03-20)</code>, <code>days between(2026-03-01, 2026-03-15)</code>",
-    helpFunctions6: "Function names are case-insensitive and work with or without a leading <code>=</code>.",
+    helpFunctions6: "Supported date formats: <code>YYYY-MM-DD</code>, <code>DD.MM.YYYY</code>, <code>DD. MMMM YYYY</code> (e.g. <code>1. March 2026</code>)",
+    helpFunctions7: "Function names are case-insensitive and work with or without a leading <code>=</code>.",
     helpLinkLine: "Extended syntax: <a id=\"help-link-mathjs\" href=\"https://mathjs.org/docs/expressions/syntax.html\" target=\"_blank\" rel=\"noopener noreferrer\">mathjs.org/docs/expressions/syntax.html</a>",
     helpConv1: "Length: <code>mm</code>, <code>cm</code>, <code>m</code>, <code>km</code>, <code>in</code>, <code>ft</code>, <code>yd</code>, <code>mi</code>",
     helpConv2: "Mass: <code>mg</code>, <code>g</code>, <code>kg</code>, <code>t</code>, <code>oz</code>, <code>lb</code>",
@@ -339,24 +347,56 @@ const unitDefs = {
 let activeCurrencyRates = { ...FIXED_CURRENCY_RATES };
 let liveCurrencyRates = null;
 let liveFxLastUpdated = null;
+const dynamicCurrencyUnitKeys = new Set();
+const dynamicCurrencyAliasKeys = new Set();
+
+function clearDynamicCurrencyUnits() {
+  for (const key of dynamicCurrencyUnitKeys) {
+    delete unitDefs[key];
+  }
+  dynamicCurrencyUnitKeys.clear();
+
+  for (const alias of dynamicCurrencyAliasKeys) {
+    unitAliases.delete(alias);
+  }
+  dynamicCurrencyAliasKeys.clear();
+}
 
 function applyCurrencyRates(rates) {
-  const normalized = {
-    eur: 1,
-    usd: Number(rates.usd),
-    chf: Number(rates.chf),
-    gbp: Number(rates.gbp),
-  };
-
-  if (!Number.isFinite(normalized.usd) || !Number.isFinite(normalized.chf) || !Number.isFinite(normalized.gbp)) {
+  if (!rates || typeof rates !== "object") {
     return false;
   }
 
+  const normalized = {};
+  for (const [rawCode, rawRate] of Object.entries(rates)) {
+    const code = String(rawCode || "").trim().toLowerCase();
+    if (!/^[a-z]{3}$/u.test(code)) {
+      continue;
+    }
+    const numericRate = Number(rawRate);
+    if (!Number.isFinite(numericRate) || numericRate <= 0) {
+      continue;
+    }
+    normalized[code] = numericRate;
+  }
+
+  normalized.eur = 1;
+  if (!Number.isFinite(normalized.usd) || !Number.isFinite(normalized.chf) || !Number.isFinite(normalized.gbp)) {
+    // Mindestens die bisher unterstützten Hauptwährungen müssen vorhanden sein.
+    return false;
+  }
+
+  clearDynamicCurrencyUnits();
   activeCurrencyRates = normalized;
-  unitDefs.eur = linearUnit("currency", "€", normalized.eur);
-  unitDefs.usd = linearUnit("currency", "$", normalized.usd);
-  unitDefs.chf = linearUnit("currency", "CHF", normalized.chf);
-  unitDefs.gbp = linearUnit("currency", "£", normalized.gbp);
+
+  for (const [code, rate] of Object.entries(normalized)) {
+    const symbol = CURRENCY_SYMBOLS[code] || code.toUpperCase();
+    unitDefs[code] = linearUnit("currency", symbol, rate);
+    unitAliases.set(code, code);
+    dynamicCurrencyUnitKeys.add(code);
+    dynamicCurrencyAliasKeys.add(code);
+  }
+
   return true;
 }
 
@@ -376,6 +416,10 @@ function renderFxInfoList() {
     `CHF: ${Number(rates.chf).toFixed(6)}`,
     `GBP: ${Number(rates.gbp).toFixed(6)}`,
   ];
+  if (appSettings && appSettings.useLiveFx && liveCurrencyRates) {
+    const supportedCount = Object.keys(liveCurrencyRates).length;
+    items.push(`Unterstützt: ${supportedCount} Währungen`);
+  }
 
   if (liveFxLastUpdated && appSettings && appSettings.useLiveFx && liveCurrencyRates) {
     const stamp = liveFxLastUpdated.toISOString().replace("T", " ").replace(/\.\d{3}Z$/u, " UTC");
@@ -406,12 +450,10 @@ async function refreshLiveFxRates() {
       throw new Error("Invalid payload");
     }
 
-    const fetchedRates = {
-      eur: 1,
-      usd: rates.USD,
-      chf: rates.CHF,
-      gbp: rates.GBP,
-    };
+    const fetchedRates = { eur: 1 };
+    for (const [code, rate] of Object.entries(rates)) {
+      fetchedRates[String(code || "").toLowerCase()] = rate;
+    }
     if (applyCurrencyRates(fetchedRates)) {
       liveCurrencyRates = { ...activeCurrencyRates };
       liveFxLastUpdated = new Date();
@@ -849,6 +891,7 @@ function applyLocalization() {
   setHtmlById("help-functions-4", t("helpFunctions4"));
   setHtmlById("help-functions-5", t("helpFunctions5"));
   setHtmlById("help-functions-6", t("helpFunctions6"));
+  setHtmlById("help-functions-7", t("helpFunctions7"));
   setHtmlById("help-link-line", t("helpLinkLine"));
   setHtmlById("help-conv-1", t("helpConv1"));
   setHtmlById("help-conv-2", t("helpConv2"));
@@ -1394,6 +1437,10 @@ function resolveIdentifier(name, context) {
   if (unitKey) {
     const def = unitDefs[unitKey];
     return makeQuantity(1, { unit: unitKey, dimension: def.dimension });
+  }
+
+  if (/^[a-z]{3}$/u.test(lowered) && unitDefs[lowered] && unitDefs[lowered].dimension === "currency") {
+    return makeQuantity(1, { unit: lowered, dimension: "currency" });
   }
 
   throw new Error(`Unbekannter Name: ${name}`);
